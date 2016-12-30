@@ -9,6 +9,7 @@ from gps import __file__ as gps_filepath
 from gps.agent.box2d.agent_box2d import AgentBox2D
 from gps.agent.box2d.point_mass_world import PointMassWorld
 from gps.algorithm.algorithm_traj_opt import AlgorithmTrajOpt
+from gps.algorithm.cost.cost_obstacles import CostObstacle
 from gps.algorithm.cost.cost_state import CostState
 from gps.algorithm.cost.cost_action import CostAction
 from gps.algorithm.cost.cost_sum import CostSum
@@ -16,7 +17,7 @@ from gps.algorithm.dynamics.dynamics_lr_prior import DynamicsLRPrior
 from gps.algorithm.dynamics.dynamics_prior_gmm import DynamicsPriorGMM
 from gps.algorithm.traj_opt.traj_opt_lqr_python import TrajOptLQRPython
 from gps.algorithm.policy.lin_gauss_init import init_pd
-from gps.proto.gps_pb2 import END_EFFECTOR_POINTS, END_EFFECTOR_POINT_VELOCITIES, ACTION
+from gps.proto.gps_pb2 import END_EFFECTOR_POINTS, END_EFFECTOR_POINT_VELOCITIES, ACTION, POSITION_NEAREST_OBSTACLE
 from gps.gui.config import generate_experiment_info
 
 SENSOR_DIMS = {
@@ -88,10 +89,21 @@ state_cost = {
     },
 }
 
+obstacle_cost = {
+    'type': CostObstacle,
+    'obstacle_type' : POSITION_NEAREST_OBSTACLE,
+    'data_types' : {
+        END_EFFECTOR_POINTS: {
+            'wp': np.ones(SENSOR_DIMS[END_EFFECTOR_POINTS]),
+            'd_safe': 1.0
+        },
+    },
+}
+
 algorithm['cost'] = {
     'type': CostSum,
-    'costs': [action_cost, state_cost],
-    'weights': [1.0, 1.0],
+    'costs': [action_cost, state_cost, obstacle_cost],
+    'weights': [1.0, 1.0, 10.0],
 }
 
 algorithm['dynamics'] = {
@@ -112,7 +124,7 @@ algorithm['traj_opt'] = {
 algorithm['policy_opt'] = {}
 
 config = {
-    'iterations': 10,
+    'iterations': 15,
     'num_samples': 5,
     'common': common,
     'verbose_trials': 0,
