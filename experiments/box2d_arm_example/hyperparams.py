@@ -46,7 +46,7 @@ agent = {
     'type': AgentBox2D,
     'target_state' : np.array([0, 0]),
     'world' : ArmWorld,
-    'render' : True,
+    'render' : False,
     'x0': np.array([0.75*np.pi, 0.5*np.pi, 0, 0, 0, 0, 0]),
     'rk': 0,
     'dt': 0.05,
