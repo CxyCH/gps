@@ -83,6 +83,13 @@ class PointMassWorld(Framework):
         """Moves forward in time one step. Calls the renderer if applicable."""
         if self.render:
             super(PointMassWorld, self).run_next(action)
+            hist = self.world.CreateStaticBody(
+                position=self.body.position,
+                angle=self.body.angle,
+                shapes=self.body_shape
+            )
+            hist.active = False
+            #self.world.DestroyBody(hist)
         else:
             if action is not None:
                 self.body.linearVelocity = (action[0], action[1])

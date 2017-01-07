@@ -24,7 +24,10 @@ from gps.utility.data_logger import DataLogger
 from gps.agent.agent_utils import generate_noise, setup
 from gps.agent.config import AGENT
 from gps.algorithm.cost.cost_utils import evalhinglel2loss, evall1l2term, evallogl2term
-
+from scipy.stats import multivariate_normal
+from numpy.linalg import LinAlgError
+import scipy as sp
+import time
 
 config = None
 
@@ -134,6 +137,11 @@ def set_sample(sample, b2d_X, t):
 		sample.set(sensor, np.array(b2d_X[sensor]), t)
 		
 def evalGradient(func, x, eps=1e-5):
+	"""
+	Inputs: 
+	- func: function output scalar
+	- x: matrix array TxdX
+	"""
 	dimx1, dimx2 = x.shape
 	grad_x = np.zeros([dimx1, dimx2])
 	
@@ -178,6 +186,63 @@ def evalHessian(func, x, eps=1e-5):
     
 	return h
 
+def forward(traj_distr, traj_info):
+    """
+    Perform LQR forward pass. Computes state-action marginals from
+    dynamics and policy.
+    Args:
+        traj_distr: A linear Gaussian policy object.
+        traj_info: A TrajectoryInfo object.
+    Returns:
+        mu: A T x dX mean action vector.
+        sigma: A T x dX x dX covariance matrix.
+    """
+    # Compute state-action marginals from specified conditional
+    # parameters and current traj_info.
+    T = traj_distr.T
+    dU = traj_distr.dU
+    dX = traj_distr.dX
+
+    # Constants.
+    idx_x = slice(dX)
+
+    # Allocate space.
+    sigma = np.zeros((T, dX+dU, dX+dU))
+    mu = np.zeros((T, dX+dU))
+
+    # Pull out dynamics.
+    Fm = traj_info.dynamics.Fm
+    fv = traj_info.dynamics.fv
+    dyn_covar = traj_info.dynamics.dyn_covar
+
+    # Set initial covariance (initial mu is always zero).
+    sigma[0, idx_x, idx_x] = traj_info.x0sigma
+    mu[0, idx_x] = traj_info.x0mu
+
+    for t in range(T):
+        sigma[t, :, :] = np.vstack([
+            np.hstack([
+                sigma[t, idx_x, idx_x],
+                sigma[t, idx_x, idx_x].dot(traj_distr.K[t, :, :].T)
+            ]),
+            np.hstack([
+                traj_distr.K[t, :, :].dot(sigma[t, idx_x, idx_x]),
+                traj_distr.K[t, :, :].dot(sigma[t, idx_x, idx_x]).dot(
+                    traj_distr.K[t, :, :].T
+                ) + traj_distr.pol_covar[t, :, :]
+            ])
+        ])
+        mu[t, :] = np.hstack([
+            mu[t, idx_x],
+            traj_distr.K[t, :, :].dot(mu[t, idx_x]) + traj_distr.k[t, :]
+        ])
+        if t < T - 1:
+            sigma[t+1, idx_x, idx_x] = \
+                    Fm[t, :, :].dot(sigma[t, :, :]).dot(Fm[t, :, :].T) + \
+                    dyn_covar[t, :, :]
+            mu[t+1, idx_x] = Fm[t, :, :].dot(mu[t, :]) + fv[t, :]
+    return mu, sigma
+
 def runTest(itr_load):
 	data_files_dir = config['common']['data_files_dir']
 	data_logger = DataLogger()
@@ -197,13 +262,56 @@ def runTest(itr_load):
 	
 	x0 = agent_hyperparams["x0"]
 	T = agent_hyperparams['T']
+	dX = x0.shape[0]
 	dU = agent_hyperparams['sensor_dims'][ACTION]
+	
+	traj_info = algorithm.cur[0].traj_info
+	traj_info.x0mu = x0
+	traj_info.x0sigma = np.zeros([dX, dX])
+	#Fm = traj_info.dynamics.Fm
+	#fv = traj_info.dynamics.fv
+	#dyn_covar = traj_info.dynamics.dyn_covar
+    
+	mu, sigma = forward(pol, traj_info)
+	t = 1
+	for t in range(1,4):
+		x0 = np.copy(mu[t,:dX])
+		x0[:2] += 1e-3
+		lognorm = lambda x: multivariate_normal.logpdf(x, mean=mu[t,:dX], cov=sigma[t,:dX,:dX])
+		y = lognorm(x0)
+		
+		inv_sigma = np.linalg.inv(sigma[t,:dX,:dX])
+		analyticGradient = -inv_sigma.dot(x0 - mu[t,:dX])
+		numGradient = evalGradient(lognorm, x0.reshape(1,dX)).reshape(dX)
+		graderr = np.mean(analyticGradient - numGradient)
+		print "Gradient error: ", graderr
+		
+		analyticHessian = -inv_sigma
+		numHessian = evalHessian(lognorm, x0.reshape(1,dX))
+		hesserr = np.mean(analyticHessian - numHessian)
+		print "Hessian error: ", hesserr
+	
+	"""
+	ti = time.time()
+	try:
+	    U = sp.linalg.cholesky(sigma[t,:dX,:dX])
+	    L = U.T
+	except LinAlgError as e:
+	    print 'Sigma LinAlgError: %s' % e
+	
+	inv_sigma = sp.linalg.solve_triangular(
+	    U, sp.linalg.solve_triangular(L, np.eye(dX), lower=True)
+	)
+	print "Elapse: ", time.time() - ti
+	"""
+	
 	"""
 	for i in range(config['num_samples']):
 		agent.sample(
 	        pol, 0,
 	        verbose=(i < config['verbose_trials'])
 	    )
+	"""
 	"""
 	cost = config['algorithm']['cost']['type'](config['algorithm']['cost'])
 	cost_obstacle = CostObstacle(config['algorithm']['cost']['costs'][2])
@@ -235,6 +343,7 @@ def runTest(itr_load):
 		ol, olx, olu, olxx, oluu, olux = cost_obstacle.eval(sample)
 		sl, slx, slu, slxx, sluu, slux = cost_state.eval(sample)
 		print np.sum(l), wo*np.sum(ol), ws*np.sum(sl)
+	"""
     
 def main():
 	print 'running box2d'
