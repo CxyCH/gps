@@ -198,7 +198,7 @@ def runTest(itr_load):
 	x0 = agent_hyperparams["x0"]
 	T = agent_hyperparams['T']
 	dU = agent_hyperparams['sensor_dims'][ACTION]
-	#"""
+	"""
 	for i in range(config['num_samples']):
 		agent.sample(
 	        pol, 0,
@@ -208,49 +208,33 @@ def runTest(itr_load):
 	cost = config['algorithm']['cost']['type'](config['algorithm']['cost'])
 	cost_obstacle = CostObstacle(config['algorithm']['cost']['costs'][2])
 	cost_state = CostState(config['algorithm']['cost']['costs'][1])
-	agent._worlds[0].run()
-	agent._worlds[0].reset_world()
-	b2d_X = agent._worlds[0].get_state()
-	sample = agent._init_sample(b2d_X)
-	U = np.zeros([T, dU])
+	wo = config['algorithm']['cost']['weights'][2]
+	ws = config['algorithm']['cost']['weights'][1]
 	
-	from gradient_check import grad_check_sparse
+	for i in range(config['num_samples']):
+		agent._worlds[0].run()
+		agent._worlds[0].reset_world()
+		b2d_X = agent._worlds[0].get_state()
+		sample = agent._init_sample(b2d_X)
+		U = np.zeros([T, dU])
 	
-					
-	noise = generate_noise(T, dU, agent_hyperparams)
-	for t in range(T):
-		X_t = sample.get_X(t=t)
-		obs_t = sample.get_obs(t=t)
-		U[t, :] = pol.act(X_t, obs_t, t, noise[t, :])
-		
-		if (t+1) < T:
-			for _ in range(agent_hyperparams['substeps']):
-				agent._worlds[0].run_next(U[t, :])
-			b2d_X = agent._worlds[0].get_state()
-			agent._set_sample(sample, b2d_X, t)
-			sample.set(ACTION, U)
-			#l, lx, lu, lxx, luu, lux = cost.eval(sample)
-			#ol, olx, olu, olxx, oluu, olux = cost_obstacle.eval(sample)
+		noise = generate_noise(T, dU, agent_hyperparams)
+		for t in range(T):
+			X_t = sample.get_X(t=t)
+			obs_t = sample.get_obs(t=t)
+			U[t, :] = pol.act(X_t, obs_t, t, noise[t, :])
 			
-			#sl, slx, slu, slxx, sluu, slux = cost_state.eval(sample)
-			#print sample.get(DISTANCE_TO_NEAREST_OBSTACLE, t), l[t], ol[t], sl[t]
-	
-	dist = sample.get(DISTANCE_TO_NEAREST_OBSTACLE)
-	x = sample.get(END_EFFECTOR_POINTS)
-	_, dim_sensor = x.shape
-
-	f = lambda dist: evalhinglel2loss(
-        np.ones([T]), dist, 1.0, x,
-        np.tile(np.eye(dim_sensor), [T, 1, 1]) # ??
-    )[0]
-	
-	l, ls, lss = evalhinglel2loss(
-        np.ones([T]), dist, 1.0, x,
-        np.tile(np.eye(dim_sensor), [T, 1, 1]) # ??
-    )
-	grad_numerical = grad_check_sparse(f, dist, ls)
-		#print lx
-	"""
+			if (t+1) < T:
+				for _ in range(agent_hyperparams['substeps']):
+					agent._worlds[0].run_next(U[t, :])
+				b2d_X = agent._worlds[0].get_state()
+				agent._set_sample(sample, b2d_X, t)
+				sample.set(ACTION, U)
+		
+		l, lx, lu, lxx, luu, lux = cost.eval(sample)
+		ol, olx, olu, olxx, oluu, olux = cost_obstacle.eval(sample)
+		sl, slx, slu, slxx, sluu, slux = cost_state.eval(sample)
+		print np.sum(l), wo*np.sum(ol), ws*np.sum(sl)
     
 def main():
 	print 'running box2d'
@@ -262,7 +246,8 @@ def main():
 	config = hyperparams.config
 	
 	#runExperiment()
-	runTest(14)
+	argv = sys.argv
+	runTest(int(argv[1]))
 	print "pass test"
 
 if __name__ == '__main__':
