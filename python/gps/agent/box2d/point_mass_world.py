@@ -83,12 +83,14 @@ class PointMassWorld(Framework):
         """Moves forward in time one step. Calls the renderer if applicable."""
         if self.render:
             super(PointMassWorld, self).run_next(action)
+            """
             hist = self.world.CreateStaticBody(
                 position=self.body.position,
                 angle=self.body.angle,
                 shapes=self.body_shape
             )
             hist.active = False
+            """
             #self.world.DestroyBody(hist)
         else:
             if action is not None:
@@ -133,6 +135,19 @@ class PointMassWorld(Framework):
         """
         
         return np.append(np.array(distanceOutput.pointB), [0])
+
+    def drawPose(self, poseArray, position):
+        hist = self.world.CreateStaticBody(
+            position=position,
+            angle=self.body.angle,
+            shapes=self.body_shape
+        )
+        hist.active = False
+        poseArray.append(hist)
+    
+    def clearPose(self, poseArray):
+        for hist in poseArray:
+            self.world.DestroyBody(hist)
 
     def get_state(self):
         """ This retrieves the state of the point mass"""

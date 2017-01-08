@@ -58,6 +58,7 @@ agent = {
     'sensor_dims': SENSOR_DIMS,
     'state_include': [END_EFFECTOR_POINTS, END_EFFECTOR_POINT_VELOCITIES],
     'obs_include': [],
+    'smooth_noise_var': 10.0
 }
 
 algorithm = {
