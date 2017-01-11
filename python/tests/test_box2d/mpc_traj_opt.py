@@ -4,6 +4,7 @@ import sys
 import numpy as np
 import scipy as sp
 from copy import deepcopy
+from math import ceil
 from scipy.stats import multivariate_normal
 from numpy.linalg import LinAlgError
 
@@ -12,17 +13,49 @@ class MpcTrajOpt(object):
     def __init__(self, M):
         self.M = M
         
-    def runmpc(self, X_t, traj_distr, traj_info, cur_t):
-        dU = traj_distr.dU
-        dX = traj_distr.dX
+    def update(self, prev_mpc, sample, traj_distr, traj_info, cur_t):
+        self.T = sample.T
+        dX = sample.dX
+        dU = sample.dU
+        
+        X = sample.get_X()
+        U = sample.get_U()
+                    
+        # Make a copy
         trajinfo = deepcopy(traj_info)
-        trajinfo.x0mu = X_t
-        trajinfo.x0sigma = np.zeros([dX, dX])
+        trajinfo.x0mu = X[cur_t]
+        trajinfo.x0sigma = 1e-6*np.eye(dX)
         
         mu, sigma = self.forward(traj_distr, trajinfo, cur_t)
-        new_traj_distr = self.backward(traj_distr, trajinfo, X_t, mu, sigma, cur_t)
+        if cur_t+self.M > self.T-1:
+            new_mpc = self.backward(prev_mpc, trajinfo, X[cur_t:], U[cur_t:], mu, sigma, cur_t)
+        else:
+            new_mpc = self.backward(prev_mpc, trajinfo, X[cur_t:cur_t+self.M], U[cur_t:cur_t+self.M], mu, sigma, cur_t)
+                
+        return new_mpc, mu, sigma
         
-        return new_traj_distr, mu, sigma
+        """
+        N = int(ceil(T/self.M))
+        
+        # Make a copy
+        trajinfo = deepcopy(traj_info)
+        new_traj_distr = traj_distr.nans_like()
+        
+        new_mu = np.zeros([T,dX+dU])
+        new_sigma = np.zeros([T,dX+dU,dX+dU])
+        
+        X = sample.get_X()
+        U = sample.get_U()
+        for n in range(N):
+            t = n*self.M
+            trajinfo.x0mu = X[t]
+            trajinfo.x0sigma = 1e-6*np.eye(dX)
+            
+            new_mu[t:t+self.M,:], new_sigma[t:t+self.M,:,:] = self.forward(traj_distr, trajinfo, t)
+            new_traj_distr = self.backward(new_traj_distr, trajinfo, X[t:t+self.M], U[t:t+self.M], new_mu[t:t+self.M], new_sigma[t:t+self.M], t)
+        
+        return new_traj_distr, new_mu, new_sigma
+        """
         
     def forward(self, traj_distr, traj_info, cur_t):
         """
@@ -59,6 +92,8 @@ class MpcTrajOpt(object):
     
         for t in range(T):
             t_traj = cur_t+t
+            if t_traj > self.T-1:
+                break
             sigma[t, :, :] = np.vstack([
                 np.hstack([
                     sigma[t, idx_x, idx_x],
@@ -82,7 +117,7 @@ class MpcTrajOpt(object):
                 mu[t+1, idx_x] = Fm[t_traj, :, :].dot(mu[t, :]) + fv[t_traj, :]
         return mu, sigma
     
-    def backward(self, prev_traj_distr, traj_info, x0, mu, sigma, cur_t):
+    def backward(self, new_traj_distr, traj_info, x0, u0, mu, sigma, cur_t):
         """
         Perform LQR backward pass. This computes a new linear Gaussian
         policy object.
@@ -99,13 +134,9 @@ class MpcTrajOpt(object):
                 Q-function is not PD.
         """
         # Constants.
-        T = self.M
-        dU = prev_traj_distr.dU
-        dX = prev_traj_distr.dX
-
-        # TODO: Change size to M
-        traj_distr = prev_traj_distr.nans_like()
-        #traj_distr.T = self.M
+        T = x0.shape[0]
+        dU = new_traj_distr.dU
+        dX = new_traj_distr.dX
         
         """
         # TODO: Check BADMM need this?
@@ -135,7 +166,7 @@ class MpcTrajOpt(object):
             Vxx = np.zeros((T, dX, dX))
             Vx = np.zeros((T, dX))
 
-            fCm, fcv = self.compute_costs(x0, mu, sigma, dX, dU)
+            fCm, fcv = self.compute_costs(x0, u0, mu, sigma, dX, dU)
 
             # Compute state-action-state function at each time step.
             for t in range(T - 1, -1, -1):
@@ -177,27 +208,27 @@ class MpcTrajOpt(object):
                     break
 
                 # Store conditional covariance, inverse, and Cholesky.
-                traj_distr.inv_pol_covar[t, :, :] = Qtt[idx_u, idx_u]
-                traj_distr.pol_covar[t, :, :] = sp.linalg.solve_triangular(
+                new_traj_distr.inv_pol_covar[t_traj, :, :] = Qtt[idx_u, idx_u]
+                new_traj_distr.pol_covar[t_traj, :, :] = sp.linalg.solve_triangular(
                     U, sp.linalg.solve_triangular(L, np.eye(dU), lower=True)
                 )
-                traj_distr.chol_pol_covar[t, :, :] = sp.linalg.cholesky(
-                    traj_distr.pol_covar[t, :, :]
+                new_traj_distr.chol_pol_covar[t_traj, :, :] = sp.linalg.cholesky(
+                    new_traj_distr.pol_covar[t_traj, :, :]
                 )
 
                 # Compute mean terms.
-                traj_distr.k[t, :] = -sp.linalg.solve_triangular(
+                new_traj_distr.k[t_traj, :] = -sp.linalg.solve_triangular(
                     U, sp.linalg.solve_triangular(L, Qt[idx_u], lower=True)
                 )
-                traj_distr.K[t, :, :] = -sp.linalg.solve_triangular(
+                new_traj_distr.K[t_traj, :, :] = -sp.linalg.solve_triangular(
                     U, sp.linalg.solve_triangular(L, Qtt[idx_u, idx_x],
                                                   lower=True)
                 )
 
                 # Compute value function.
                 Vxx[t, :, :] = Qtt[idx_x, idx_x] + \
-                        Qtt[idx_x, idx_u].dot(traj_distr.K[t, :, :])
-                Vx[t, :] = Qt[idx_x] + Qtt[idx_x, idx_u].dot(traj_distr.k[t, :])
+                        Qtt[idx_x, idx_u].dot(new_traj_distr.K[t_traj, :, :])
+                Vx[t, :] = Qt[idx_x] + Qtt[idx_x, idx_u].dot(new_traj_distr.k[t_traj, :])
                 Vxx[t, :, :] = 0.5 * (Vxx[t, :, :] + Vxx[t, :, :].T)
 
             # Increment eta on non-SPD Q-function.
@@ -206,7 +237,7 @@ class MpcTrajOpt(object):
                 old_eta = eta
                 eta = eta0 + del_
                 #LOGGER.debug('Increasing eta: %f -> %f', old_eta, eta)
-                print 'Increasing eta: %f -> %f', old_eta, eta
+                print 'Increasing eta: %f -> %f' % (old_eta, eta)
                 del_ *= 2  # Increase del_ exponentially on failure.
                 if eta >= 1e16:
                     if np.any(np.isnan(Fm)) or np.any(np.isnan(fv)):
@@ -215,11 +246,12 @@ class MpcTrajOpt(object):
                             large eta (check that dynamics and cost are \
                             reasonably well conditioned)!')
                 #"""
-        return traj_distr
+        return new_traj_distr
     
-    def compute_costs(self, x0, mu, sigma, dX, dU):
-        fCm = np.zeros([self.M, dX+dU, dX+dU])
-        fcv = np.zeros([self.M, dX+dU])
+    def compute_costs(self, x0, u0, mu, sigma, dX, dU):
+        T = x0.shape[0]
+        fCm = np.zeros([T, dX+dU, dX+dU])
+        fcv = np.zeros([T, dX+dU])
         
         idx_x = slice(dX)
         idx_u = slice(dX, dX+dU)
@@ -227,9 +259,15 @@ class MpcTrajOpt(object):
         # Cost = -logp(x_t'|x_t)
         # Gradient = inv(Sigma)*(x0 - mu)
         # Hessian = inv(Sigma)
-        for t in range(self.M - 1, 0, -1):
+        for t in range(T - 1, -1, -1):
             inv_sigma = np.linalg.inv(sigma[t,idx_x,idx_x])
-            fcv[t, idx_x] = inv_sigma.dot(x0 - mu[t,idx_x]) # Gradient
+            fcv[t, idx_x] = inv_sigma.dot(x0[t] - mu[t,idx_x]) # Gradient
             fCm[t, idx_x, idx_x] = inv_sigma # Hessian
         
+        yhat = np.c_[x0, u0]
+        rdiff = -yhat
+        rdiff_expand = np.expand_dims(rdiff, axis=2)
+        cv_update = np.sum(fCm * rdiff_expand, axis=1)
+        fcv += cv_update
+                
         return fCm, fcv

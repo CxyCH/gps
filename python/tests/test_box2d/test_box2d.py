@@ -201,7 +201,7 @@ def runTest(itr_load):
 	
 	agent_hyperparams = deepcopy(AGENT)
 	agent_hyperparams.update(config['agent'])
-	agent_hyperparams['render'] = True
+	agent_hyperparams['render'] = False
 	agent = config['agent']['type'](agent_hyperparams)
 	
 	x0 = agent_hyperparams["x0"]
@@ -227,67 +227,76 @@ def runTest(itr_load):
 	wo = config['algorithm']['cost']['weights'][2]
 	ws = config['algorithm']['cost']['weights'][1]
 	
+	"""
+	 Rollout from offline trajectory distribution, no render
+	"""
+	agent._worlds[0].run()
+	agent._worlds[0].reset_world()
+	b2d_X = agent._worlds[0].get_state()
+	prev_sample = agent._init_sample(b2d_X)
+	U = np.zeros([T, dU])
+	
+	noise = generate_noise(T, dU, agent_hyperparams)
+	for t in range(T):
+		X_t = prev_sample.get_X(t=t)
+		obs_t = prev_sample.get_obs(t=t)
+		U[t, :] = pol.act(X_t, obs_t, t, noise[t, :])
+		if (t+1) < T:
+			for _ in range(agent_hyperparams['substeps']):
+				agent._worlds[0].run_next(U[t, :])
+			b2d_X = agent._worlds[0].get_state()
+			agent._set_sample(prev_sample, b2d_X, t)
+			prev_sample.set(ACTION, U)
+	
+	print "Rollout successful"
+	
 	# Setup for MPC
-	M = 4 # Short Horizon
+	M = 5 # Short Horizon
 	mpc = MpcTrajOpt(M)
-	
-	
-	for i in range(config['num_samples']):
-		poseArray = []
-		agent._worlds[0].run()
-		agent._worlds[0].reset_world()
-		b2d_X = agent._worlds[0].get_state()
-		sample = agent._init_sample(b2d_X)
-		U = np.zeros([T, dU])
-	
-		noise = generate_noise(T, dU, agent_hyperparams)
-		for t in range(T):
-			X_t = sample.get_X(t=t)
-			obs_t = sample.get_obs(t=t)
-			
-			t_mpc = t % M
-			if t_mpc == 0:
-				# Update trajectory distribution
-				#mpc_pol = mpc.runmpc(X_t, pol, traj_info, t)
-				mpc_pol, mu, sigma = mpc.runmpc(X_t, pol, traj_info, t)
-				for ti in range(1,M):
-					agent._worlds[0].drawPose(poseArray, mu[ti,:2])
-				"""
-				mu, sigma, fCm, fcv = mpc.runmpc(X_t, pol, traj_info, t)
-				for ti in range(1,M):
-					agent._worlds[0].drawPose(poseArray, mu[ti,:2])
-					
-					lognorm = lambda x: multivariate_normal.logpdf(x, mean=mu[ti,:dX], cov=sigma[ti,:dX,:dX])
-					numGradient = evalGradient(lognorm, X_t.reshape(1,dX)).reshape(dX)
-					graderr = np.mean(fcv[ti,:dX] - numGradient)
-					print "Gradient error: ", graderr
-					
-					numHessian = evalHessian(lognorm, X_t.reshape(1,dX))
-					hesserr = np.mean(fCm[ti,:dX,:dX] - numHessian)
-					print "Hessian error: ", hesserr
-				"""
-			if t_mpc != 0:
-				lognorm = lambda x: -multivariate_normal.logpdf(x, mean=mu[t_mpc,:dX], cov=sigma[t_mpc,:dX,:dX])
-				print("Cost %d %f" % (t, lognorm(X_t)))
-			raw_input("Press the <ENTER> key to continue...")
-			
-			#U[t, :] = mpc_pol.act(X_t, obs_t, t_mpc, noise[t, :])
-			U[t, :] = pol.act(X_t, obs_t, t, noise[t, :])
-			print U[t]
-			
-			if (t+1) < T:
-				for _ in range(agent_hyperparams['substeps']):
-					agent._worlds[0].run_next(U[t, :])
-				b2d_X = agent._worlds[0].get_state()
-				agent._set_sample(sample, b2d_X, t)
-				sample.set(ACTION, U)
-				
-		agent._worlds[0].clearPose(poseArray)
+	mpc_pol = pol.nans_like()
 		
-		l, lx, lu, lxx, luu, lux = cost.eval(sample)
-		ol, olx, olu, olxx, oluu, olux = cost_obstacle.eval(sample)
-		sl, slx, slu, slxx, sluu, slux = cost_state.eval(sample)
-		print np.sum(l), wo*np.sum(ol), ws*np.sum(sl)
+	agent_hyperparams['render'] = True
+	agent = config['agent']['type'](agent_hyperparams)	
+	poseArray = []
+	agent._worlds[0].run()
+	agent._worlds[0].reset_world()
+	b2d_X = agent._worlds[0].get_state()
+	sample = agent._init_sample(b2d_X)
+	U = np.zeros([T, dU])
+
+	noise = generate_noise(T, dU, agent_hyperparams)
+	#noise = np.zeros((T, dU)) 
+	for t in range(T):
+		# Note: M-1 because action[M] = [0,0].
+		if t % (M-1) == 0:
+			"""
+			 Find out MPC ussing sample from offline trajectory distribtion (future is previous MPC)
+			"""
+			mpc_pol, mu, sigma = mpc.update(mpc_pol, prev_sample, pol, traj_info, t)
+			for ti in range(M-1):
+				agent._worlds[0].drawPose(poseArray, mu[ti,:2])
+				agent._worlds[0].run_next(np.zeros(dU))
+		
+		X_t = sample.get_X(t=t)
+		obs_t = sample.get_obs(t=t)
+		
+		U[t, :] = mpc_pol.act(X_t, obs_t, t, noise[t, :])
+		
+		if (t+1) < T:
+			for _ in range(agent_hyperparams['substeps']):
+				agent._worlds[0].run_next(U[t, :])
+			b2d_X = agent._worlds[0].get_state()
+			agent._set_sample(sample, b2d_X, t)
+			sample.set(ACTION, U)
+			
+	agent._worlds[0].clearPose(poseArray)
+	
+	"""
+	l, lx, lu, lxx, luu, lux = cost.eval(sample)
+	ol, olx, olu, olxx, oluu, olux = cost_obstacle.eval(sample)
+	sl, slx, slu, slxx, sluu, slux = cost_state.eval(sample)
+	print np.sum(l), wo*np.sum(ol), ws*np.sum(sl)
+	"""
 	
     
 def main():
