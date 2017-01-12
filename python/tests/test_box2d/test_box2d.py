@@ -201,7 +201,7 @@ def runTest(itr_load):
 	
 	agent_hyperparams = deepcopy(AGENT)
 	agent_hyperparams.update(config['agent'])
-	agent_hyperparams['render'] = False
+	agent_hyperparams['render'] = True
 	agent = config['agent']['type'](agent_hyperparams)
 	
 	x0 = agent_hyperparams["x0"]
@@ -213,50 +213,14 @@ def runTest(itr_load):
 	traj_info.x0mu = x0
 	traj_info.x0sigma = np.zeros([dX, dX])
 	
-	"""
-	for i in range(config['num_samples']):
-		agent.sample(
-	        pol, 0,
-	        verbose=(i < config['verbose_trials'])
-	    )
-	"""
-	
-	cost = config['algorithm']['cost']['type'](config['algorithm']['cost'])
-	cost_obstacle = CostObstacle(config['algorithm']['cost']['costs'][2])
-	cost_state = CostState(config['algorithm']['cost']['costs'][1])
-	wo = config['algorithm']['cost']['weights'][2]
-	ws = config['algorithm']['cost']['weights'][1]
-	
-	"""
-	 Rollout from offline trajectory distribution, no render
-	"""
-	agent._worlds[0].run()
-	agent._worlds[0].reset_world()
-	b2d_X = agent._worlds[0].get_state()
-	prev_sample = agent._init_sample(b2d_X)
-	U = np.zeros([T, dU])
-	
-	noise = generate_noise(T, dU, agent_hyperparams)
-	for t in range(T):
-		X_t = prev_sample.get_X(t=t)
-		obs_t = prev_sample.get_obs(t=t)
-		U[t, :] = pol.act(X_t, obs_t, t, noise[t, :])
-		if (t+1) < T:
-			for _ in range(agent_hyperparams['substeps']):
-				agent._worlds[0].run_next(U[t, :])
-			b2d_X = agent._worlds[0].get_state()
-			agent._set_sample(prev_sample, b2d_X, t)
-			prev_sample.set(ACTION, U)
-	
-	print "Rollout successful"
+	# Sample using offline trajectory distribution.
+	agent.sample(pol, 0)
 	
 	# Setup for MPC
-	M = 5 # Short Horizon
+	M = 4 # Short Horizon
 	mpc = MpcTrajOpt(M)
 	mpc_pol = pol.nans_like()
 		
-	agent_hyperparams['render'] = True
-	agent = config['agent']['type'](agent_hyperparams)	
 	poseArray = []
 	agent._worlds[0].run()
 	agent._worlds[0].reset_world()
@@ -267,19 +231,19 @@ def runTest(itr_load):
 	noise = generate_noise(T, dU, agent_hyperparams)
 	#noise = np.zeros((T, dU)) 
 	for t in range(T):
-		# Note: M-1 because action[M] = [0,0].
-		if t % (M-1) == 0:
-			"""
-			 Find out MPC ussing sample from offline trajectory distribtion (future is previous MPC)
-			"""
-			mpc_pol, mu, sigma = mpc.update(mpc_pol, prev_sample, pol, traj_info, t)
-			for ti in range(M-1):
-				agent._worlds[0].drawPose(poseArray, mu[ti,:2])
-				agent._worlds[0].run_next(np.zeros(dU))
-		
 		X_t = sample.get_X(t=t)
 		obs_t = sample.get_obs(t=t)
 		
+		# Note: M-1 because action[M] = [0,0].
+		if t % (M-1) == 0:
+			"""
+			 Find out MPC using sample from offline trajectory distribtion.
+			"""
+			mpc_pol, mu, sigma = mpc.update(mpc_pol, X_t, pol, traj_info, t)
+			for ti in range(M-1):
+				agent._worlds[0].drawPose(poseArray, mu[ti,:2])
+				agent._worlds[0].run_next(np.zeros(dU))
+
 		U[t, :] = mpc_pol.act(X_t, obs_t, t, noise[t, :])
 		
 		if (t+1) < T:
@@ -290,13 +254,6 @@ def runTest(itr_load):
 			sample.set(ACTION, U)
 			
 	agent._worlds[0].clearPose(poseArray)
-	
-	"""
-	l, lx, lu, lxx, luu, lux = cost.eval(sample)
-	ol, olx, olu, olxx, oluu, olux = cost_obstacle.eval(sample)
-	sl, slx, slu, slxx, sluu, slux = cost_state.eval(sample)
-	print np.sum(l), wo*np.sum(ol), ws*np.sum(sl)
-	"""
 	
     
 def main():

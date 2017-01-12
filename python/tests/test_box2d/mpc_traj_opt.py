@@ -13,49 +13,27 @@ class MpcTrajOpt(object):
     def __init__(self, M):
         self.M = M
         
-    def update(self, prev_mpc, sample, traj_distr, traj_info, cur_t):
-        self.T = sample.T
-        dX = sample.dX
-        dU = sample.dU
+    def update(self, prev_mpc, X_t, traj_distr, traj_info, cur_t):
+        self.T = traj_distr.T
+        dX = traj_distr.dX
+        dU = traj_distr.dU
         
-        X = sample.get_X()
-        U = sample.get_U()
+        #X = sample.get_X()
+        #U = sample.get_U()
                     
         # Make a copy
         trajinfo = deepcopy(traj_info)
-        trajinfo.x0mu = X[cur_t]
+        trajinfo.x0mu = X_t#X[cur_t]
         trajinfo.x0sigma = 1e-6*np.eye(dX)
         
-        mu, sigma = self.forward(traj_distr, trajinfo, cur_t)
-        if cur_t+self.M > self.T-1:
-            new_mpc = self.backward(prev_mpc, trajinfo, X[cur_t:], U[cur_t:], mu, sigma, cur_t)
+        if cur_t+self.M > self.T:
+            X_rep = np.tile(X_t, (self.T-cur_t,1))
         else:
-            new_mpc = self.backward(prev_mpc, trajinfo, X[cur_t:cur_t+self.M], U[cur_t:cur_t+self.M], mu, sigma, cur_t)
-                
-        return new_mpc, mu, sigma
-        
-        """
-        N = int(ceil(T/self.M))
-        
-        # Make a copy
-        trajinfo = deepcopy(traj_info)
-        new_traj_distr = traj_distr.nans_like()
-        
-        new_mu = np.zeros([T,dX+dU])
-        new_sigma = np.zeros([T,dX+dU,dX+dU])
-        
-        X = sample.get_X()
-        U = sample.get_U()
-        for n in range(N):
-            t = n*self.M
-            trajinfo.x0mu = X[t]
-            trajinfo.x0sigma = 1e-6*np.eye(dX)
+            X_rep = np.tile(X_t, (self.M,1))
             
-            new_mu[t:t+self.M,:], new_sigma[t:t+self.M,:,:] = self.forward(traj_distr, trajinfo, t)
-            new_traj_distr = self.backward(new_traj_distr, trajinfo, X[t:t+self.M], U[t:t+self.M], new_mu[t:t+self.M], new_sigma[t:t+self.M], t)
-        
-        return new_traj_distr, new_mu, new_sigma
-        """
+        mu, sigma = self.forward(traj_distr, trajinfo, cur_t)
+        new_mpc = self.backward(prev_mpc, trajinfo, X_rep, mu, sigma, cur_t)
+        return new_mpc, mu, sigma
         
     def forward(self, traj_distr, traj_info, cur_t):
         """
@@ -117,7 +95,7 @@ class MpcTrajOpt(object):
                 mu[t+1, idx_x] = Fm[t_traj, :, :].dot(mu[t, :]) + fv[t_traj, :]
         return mu, sigma
     
-    def backward(self, new_traj_distr, traj_info, x0, u0, mu, sigma, cur_t):
+    def backward(self, new_traj_distr, traj_info, x0, mu, sigma, cur_t):
         """
         Perform LQR backward pass. This computes a new linear Gaussian
         policy object.
@@ -166,7 +144,7 @@ class MpcTrajOpt(object):
             Vxx = np.zeros((T, dX, dX))
             Vx = np.zeros((T, dX))
 
-            fCm, fcv = self.compute_costs(x0, u0, mu, sigma, dX, dU)
+            fCm, fcv = self.compute_costs(x0, mu, sigma, dX, dU)
 
             # Compute state-action-state function at each time step.
             for t in range(T - 1, -1, -1):
@@ -248,7 +226,7 @@ class MpcTrajOpt(object):
                 #"""
         return new_traj_distr
     
-    def compute_costs(self, x0, u0, mu, sigma, dX, dU):
+    def compute_costs(self, x0, mu, sigma, dX, dU):
         T = x0.shape[0]
         fCm = np.zeros([T, dX+dU, dX+dU])
         fcv = np.zeros([T, dX+dU])
@@ -264,10 +242,11 @@ class MpcTrajOpt(object):
             fcv[t, idx_x] = inv_sigma.dot(x0[t] - mu[t,idx_x]) # Gradient
             fCm[t, idx_x, idx_x] = inv_sigma # Hessian
         
-        yhat = np.c_[x0, u0]
+        #yhat = np.c_[x0, u0]
+        yhat = np.c_[x0]
         rdiff = -yhat
         rdiff_expand = np.expand_dims(rdiff, axis=2)
-        cv_update = np.sum(fCm * rdiff_expand, axis=1)
-        fcv += cv_update
+        cv_update = np.sum(fCm[:,idx_x,idx_x] * rdiff_expand, axis=1)
+        fcv[:,idx_x] += cv_update
                 
         return fCm, fcv

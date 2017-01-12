@@ -58,7 +58,7 @@ agent = {
     'sensor_dims': SENSOR_DIMS,
     'state_include': [END_EFFECTOR_POINTS, END_EFFECTOR_POINT_VELOCITIES],
     'obs_include': [],
-    'smooth_noise_var': 10.0
+    'smooth_noise_var': 5.0
 }
 
 algorithm = {
@@ -104,7 +104,7 @@ obstacle_cost = {
 algorithm['cost'] = {
     'type': CostSum,
     'costs': [action_cost, state_cost, obstacle_cost],
-    'weights': [1.0, 1.0, 10.0],
+    'weights': [1.0, 1.2, 10.0],
 }
 
 algorithm['dynamics'] = {
