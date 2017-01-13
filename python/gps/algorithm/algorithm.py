@@ -53,12 +53,12 @@ class Algorithm(object):
         if self._hyperparams['fit_dynamics']:
             dynamics = self._hyperparams['dynamics']
             
-        #if self._hyperparams['use_mpc']:
-        self.T_mpc = 4#agent.M # Short Horizon
-        init_mpc = config['init_mpc']
-        init_mpc['x0'] = agent.x0
-        init_mpc['dX'] = agent.dX
-        init_mpc['dU'] = agent.dU
+        if self._hyperparams['use_mpc']:
+            init_mpc = config['init_mpc']
+            init_mpc['x0'] = agent.x0
+            init_mpc['dX'] = agent.dX
+            init_mpc['dU'] = agent.dU
+            self.T_mpc = init_mpc['T']
 
         for m in range(self.M):
             self.cur[m].traj_info = TrajectoryInfo()
@@ -69,12 +69,12 @@ class Algorithm(object):
             )
             self.cur[m].traj_distr = init_traj_distr['type'](init_traj_distr)
             
-            #if self._hyperparams['use_mpc']:
-            init_mpc = extract_condition(
-                self._hyperparams['init_mpc'], self._cond_idx[m]
-            )
-            self.cur[m].mpc = MpcTrajOpt(self.T_mpc)
-            self.cur[m].mpc_pol = config['init_mpc']['type'](init_mpc)
+            if self._hyperparams['use_mpc']:
+                init_mpc = extract_condition(
+                    self._hyperparams['init_mpc'], self._cond_idx[m]
+                )
+                self.cur[m].mpc = MpcTrajOpt(self.T_mpc)
+                self.cur[m].mpc_pol = config['init_mpc']['type'](init_mpc)
 
         self.traj_opt = hyperparams['traj_opt']['type'](
             hyperparams['traj_opt']
