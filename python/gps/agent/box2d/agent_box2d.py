@@ -43,7 +43,7 @@ class AgentBox2D(Agent):
                         for i in range(self._hyperparams['conditions'])]
 
 
-    def sample(self, policy, condition, verbose=False, save=True, noisy=True):
+    def sample(self, policy, condition, reset=True, verbose=False, save=True, noisy=True):
         """
         Runs a trial and constructs a new sample containing information
         about the trial.
@@ -55,8 +55,9 @@ class AgentBox2D(Agent):
             save (boolean): Whether or not to store the trial into the samples.
             noisy (boolean): Whether or not to use noise during sampling.
         """
-        self._worlds[condition].run()
-        self._worlds[condition].reset_world()
+        if reset:
+            self._worlds[condition].run()
+            self._worlds[condition].reset_world()
         b2d_X = self._worlds[condition].get_state()
         new_sample = self._init_sample(b2d_X)
         U = np.zeros([self.T, self.dU])

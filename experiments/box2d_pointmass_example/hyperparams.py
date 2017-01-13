@@ -37,6 +37,7 @@ common = {
     'target_filename': EXP_DIR + 'target.npz',
     'log_filename': EXP_DIR + 'log.txt',
     'conditions': 1,
+    'use_mpc': True,
 }
 
 if not os.path.exists(common['data_files_dir']):
@@ -55,15 +56,18 @@ agent = {
     'pos_body_idx': np.array([]),
     'pos_body_offset': np.array([]),
     'T': 100,
+    'use_mpc': common['use_mpc'],
+    'M': 4,
     'sensor_dims': SENSOR_DIMS,
     'state_include': [END_EFFECTOR_POINTS, END_EFFECTOR_POINT_VELOCITIES],
     'obs_include': [],
-    'smooth_noise_var': 5.0
+    'smooth_noise_var': 0.3 # 2.0
 }
 
 algorithm = {
     'type': AlgorithmTrajOpt,
     'conditions': common['conditions'],
+    'use_mpc': common['use_mpc'],
 }
 
 algorithm['init_traj_distr'] = {
@@ -73,6 +77,15 @@ algorithm['init_traj_distr'] = {
     'dQ': SENSOR_DIMS[ACTION],
     'dt': agent['dt'],
     'T': agent['T'],
+}
+
+algorithm['init_mpc'] = {
+    'type': init_pd,
+    'init_var': 5.0,
+    'pos_gains': 0.0,
+    'dQ': SENSOR_DIMS[ACTION],
+    'dt': agent['dt'],
+    'T': agent['M'],
 }
 
 action_cost = {
@@ -125,7 +138,7 @@ algorithm['traj_opt'] = {
 algorithm['policy_opt'] = {}
 
 config = {
-    'iterations': 15,
+    'iterations': 20,
     'num_samples': 5,
     'common': common,
     'verbose_trials': 0,

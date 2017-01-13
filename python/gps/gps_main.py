@@ -19,6 +19,9 @@ from gps.gui.gps_training_gui import GPSTrainingGUI
 from gps.utility.data_logger import DataLogger
 from gps.sample.sample_list import SampleList
 
+from gps.sample.sample import Sample
+from math import ceil
+
 
 class GPSMain(object):
     """ Main class to run algorithms and experiments. """
@@ -49,6 +52,13 @@ class GPSMain(object):
 
         config['algorithm']['agent'] = self.agent
         self.algorithm = config['algorithm']['type'](config['algorithm'])
+        
+        self.use_mpc = False
+        if config['common']['use_mpc']:
+            self.use_mpc = True
+            config['agent']['T'] = config['agent']['M'] 
+            self.mpc_agent = config['agent']['type'](config['agent'])
+            
 
     def run(self, itr_load=None):
         """
@@ -179,10 +189,8 @@ class GPSMain(object):
                     'Sampling: iteration %d, condition %d, sample %d.' %
                     (itr, cond, i)
                 )
-                self.agent.sample(
-                    pol, cond,
-                    verbose=(i < self._hyperparams['verbose_trials'])
-                )
+                
+                self._roll_out(pol, itr, cond, i)
 
                 if self.gui.mode == 'request' and self.gui.request == 'fail':
                     redo = True
@@ -191,11 +199,55 @@ class GPSMain(object):
                 else:
                     redo = False
         else:
+            self._roll_out(pol, itr, cond, i)
+
+    def _roll_out(self, pol, itr, cond, i):
+        if self.use_mpc and itr > 0:
+            T = self.agent.T
+            M = self.mpc_agent.T
+            N = int(ceil(T/(M-1.)))
+            X_t = self.agent.x0[cond]
+    
+            for n in range(N):
+                # Note: M-1 because action[M] = [0,0].
+                t_traj = n*(M-1)
+                reset = True if(n == 0) else False
+                
+                self.algorithm.cur[cond].mpc.update(
+                    self.algorithm.cur[cond].mpc_pol, X_t, pol, 
+                    self.algorithm.cur[cond].traj_info, t_traj
+                )
+                new_sample = self.mpc_agent.sample(
+                    self.algorithm.cur[cond].mpc_pol, cond, 
+                    reset=reset, noisy=True,
+                    verbose=(i < self._hyperparams['verbose_trials'])
+                )
+                X_t = new_sample.get_X(t=M-1)
+            
+            """
+             Merge sample for optimize offline trajectory distribution
+            """
+            full_sample = Sample(self.agent)
+            sample_lists = self.mpc_agent.get_samples(cond)
+            keys = sample_lists[0]._data.keys()
+            t = 0
+            for sample in sample_lists:
+                for m in range(sample.T-1):
+                    for sensor in keys:
+                        full_sample.set(sensor, sample.get(sensor, m), t)
+                    t = t+1
+                    if t+1 > T: 
+                        break
+                    
+            self.agent._samples[cond].append(full_sample)
+            # Clear agent samples.
+            self.mpc_agent.clear_samples()
+        else:
             self.agent.sample(
                 pol, cond,
                 verbose=(i < self._hyperparams['verbose_trials'])
             )
-
+    
     def _take_iteration(self, itr, sample_lists):
         """
         Take an iteration of the algorithm.

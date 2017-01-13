@@ -23,7 +23,9 @@ ALG = {
     # Whether or not to sample with neural net policy (only for badmm/mdgps).
     'sample_on_policy': False,
     # Inidicates if the algorithm requires fitting of the dynamics.
-    'fit_dynamics': True,    
+    'fit_dynamics': True,  
+    # Inidicates use mpc for sample and as a policy trainners.
+    'use_mpc': False,  
 }
 
 

@@ -9,7 +9,7 @@ import numpy as np
 from gps.algorithm.config import ALG
 from gps.algorithm.algorithm_utils import IterationData, TrajectoryInfo
 from gps.utility.general_utils import extract_condition
-
+from gps.algorithm.traj_opt.mpc_traj_opt import MpcTrajOpt
 
 LOGGER = logging.getLogger(__name__)
 
@@ -52,6 +52,13 @@ class Algorithm(object):
 
         if self._hyperparams['fit_dynamics']:
             dynamics = self._hyperparams['dynamics']
+            
+        #if self._hyperparams['use_mpc']:
+        self.T_mpc = 4#agent.M # Short Horizon
+        init_mpc = config['init_mpc']
+        init_mpc['x0'] = agent.x0
+        init_mpc['dX'] = agent.dX
+        init_mpc['dU'] = agent.dU
 
         for m in range(self.M):
             self.cur[m].traj_info = TrajectoryInfo()
@@ -61,6 +68,13 @@ class Algorithm(object):
                 self._hyperparams['init_traj_distr'], self._cond_idx[m]
             )
             self.cur[m].traj_distr = init_traj_distr['type'](init_traj_distr)
+            
+            #if self._hyperparams['use_mpc']:
+            init_mpc = extract_condition(
+                self._hyperparams['init_mpc'], self._cond_idx[m]
+            )
+            self.cur[m].mpc = MpcTrajOpt(self.T_mpc)
+            self.cur[m].mpc_pol = config['init_mpc']['type'](init_mpc)
 
         self.traj_opt = hyperparams['traj_opt']['type'](
             hyperparams['traj_opt']
@@ -189,6 +203,8 @@ class Algorithm(object):
             self.cur[m].step_mult = self.prev[m].step_mult
             self.cur[m].eta = self.prev[m].eta
             self.cur[m].traj_distr = self.new_traj_distr[m]
+            self.cur[m].mpc = copy.deepcopy(self.prev[m].mpc)
+            self.cur[m].mpc_pol = copy.deepcopy(self.prev[m].mpc_pol)
         delattr(self, 'new_traj_distr')
 
     def _set_new_mult(self, predicted_impr, actual_impr, m):

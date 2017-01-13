@@ -26,7 +26,9 @@ from gps.agent.config import AGENT
 from gps.algorithm.cost.cost_utils import evalhinglel2loss, evall1l2term, evallogl2term
 from scipy.stats import multivariate_normal
 from numpy.linalg import LinAlgError
-from mpc_traj_opt import MpcTrajOpt
+from gps.algorithm.traj_opt.mpc_traj_opt import MpcTrajOpt
+from gps.algorithm.policy.lin_gauss_init import init_pd
+from math import ceil
 import scipy as sp
 import time
 
@@ -201,8 +203,6 @@ def runTest(itr_load):
 	
 	agent_hyperparams = deepcopy(AGENT)
 	agent_hyperparams.update(config['agent'])
-	agent_hyperparams['render'] = True
-	agent = config['agent']['type'](agent_hyperparams)
 	
 	x0 = agent_hyperparams["x0"]
 	T = agent_hyperparams['T']
@@ -213,14 +213,66 @@ def runTest(itr_load):
 	traj_info.x0mu = x0
 	traj_info.x0sigma = np.zeros([dX, dX])
 	
-	# Sample using offline trajectory distribution.
-	agent.sample(pol, 0)
-	
-	# Setup for MPC
-	M = 4 # Short Horizon
+	# Setup for MPC policy
+	M = agent_hyperparams['M'] # Short Horizon
 	mpc = MpcTrajOpt(M)
-	mpc_pol = pol.nans_like()
+	mpc_params = {
+	    'type': init_pd,
+	    'init_var': 5.0,
+	    'pos_gains': 0.0,
+	    'dQ': 2,
+	    'dt': agent_hyperparams['dt'],
+	    'T': M,
+	    'x0': x0,
+        'dX': dX,
+        'dU': dU
+	}
+	mpc_pol = init_pd(mpc_params)
+	
+	agent_hyperparams['render'] = True
+	agent = config['agent']['type'](agent_hyperparams)
+	
+	agent_hyperparams['T'] = agent_hyperparams['M']
+	mpc_agent = config['agent']['type'](agent_hyperparams)
+	
+	# Sample using online MPC trajectory distribution.
+	X_t = x0
+	N = int(ceil(T/(M-1.)))
+	for n in range(N):
+		# Note: M-1 because action[M] = [0,0].
+		t_traj = n*(M-1)
+		reset = True if(n == 0) else False
 		
+		mpc.update(mpc_pol, X_t, pol, traj_info, t_traj)
+		new_sample = mpc_agent.sample(mpc_pol, 0, reset=reset, noisy=False)
+		X_t = new_sample.get_X(t=M-1)
+	
+	"""
+	 Merge sample for optimize offline trajectory distribution
+	"""
+	full_sample = Sample(agent)
+	sample_lists = mpc_agent.get_samples(0)
+	
+	keys = sample_lists[0]._data.keys()
+	t = 0
+	for sample in sample_lists:
+		for m in range(sample.T-1):
+			for sensor in keys:
+				full_sample.set(sensor, sample.get(sensor, m), t)
+			t = t+1
+			if t+1 > T:	break
+
+	print full_sample.get_X()
+	
+	# TODO: Save sample here
+	
+	"""
+	agent_hyperparams = deepcopy(AGENT)
+	agent_hyperparams.update(config['agent'])
+	agent_hyperparams['render'] = True
+	agent_hyperparams['T'] = 100
+	agent = config['agent']['type'](agent_hyperparams)
+	
 	poseArray = []
 	agent._worlds[0].run()
 	agent._worlds[0].reset_world()
@@ -228,25 +280,27 @@ def runTest(itr_load):
 	sample = agent._init_sample(b2d_X)
 	U = np.zeros([T, dU])
 
-	noise = generate_noise(T, dU, agent_hyperparams)
+	noise = generate_noise(5, dU, agent_hyperparams)
 	#noise = np.zeros((T, dU)) 
+	print noise
+	raw_input("33ff")
 	for t in range(T):
 		X_t = sample.get_X(t=t)
 		obs_t = sample.get_obs(t=t)
 		
 		# Note: M-1 because action[M] = [0,0].
-		if t % (M-1) == 0:
-			"""
-			 Find out MPC using sample from offline trajectory distribtion.
-			"""
+		t_mpc = t % (M-1)
+		if t_mpc == 0:
+			# Find out MPC using sample from offline trajectory distribtion.
 			mpc_pol, mu, sigma = mpc.update(mpc_pol, X_t, pol, traj_info, t)
 			for ti in range(M-1):
 				agent._worlds[0].drawPose(poseArray, mu[ti,:2])
 				agent._worlds[0].run_next(np.zeros(dU))
 
-		U[t, :] = mpc_pol.act(X_t, obs_t, t, noise[t, :])
+		U[t, :] = mpc_pol.act(X_t, obs_t, t_mpc, noise[t, :])
 		
 		if (t+1) < T:
+			print t, X_t, U[t, :]
 			for _ in range(agent_hyperparams['substeps']):
 				agent._worlds[0].run_next(U[t, :])
 			b2d_X = agent._worlds[0].get_state()
@@ -254,7 +308,7 @@ def runTest(itr_load):
 			sample.set(ACTION, U)
 			
 	agent._worlds[0].clearPose(poseArray)
-	
+	"""
     
 def main():
 	print 'running box2d'

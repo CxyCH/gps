@@ -1,12 +1,15 @@
 import os
 import os.path
 import sys
+import logging
 import numpy as np
 import scipy as sp
 from copy import deepcopy
 from math import ceil
 from scipy.stats import multivariate_normal
 from numpy.linalg import LinAlgError
+
+LOGGER = logging.getLogger(__name__)
 
 
 class MpcTrajOpt(object):
@@ -18,12 +21,9 @@ class MpcTrajOpt(object):
         dX = traj_distr.dX
         dU = traj_distr.dU
         
-        #X = sample.get_X()
-        #U = sample.get_U()
-                    
         # Make a copy
         trajinfo = deepcopy(traj_info)
-        trajinfo.x0mu = X_t#X[cur_t]
+        trajinfo.x0mu = X_t
         trajinfo.x0sigma = 1e-6*np.eye(dX)
         
         if cur_t+self.M > self.T:
@@ -186,36 +186,34 @@ class MpcTrajOpt(object):
                     break
 
                 # Store conditional covariance, inverse, and Cholesky.
-                new_traj_distr.inv_pol_covar[t_traj, :, :] = Qtt[idx_u, idx_u]
-                new_traj_distr.pol_covar[t_traj, :, :] = sp.linalg.solve_triangular(
+                new_traj_distr.inv_pol_covar[t, :, :] = Qtt[idx_u, idx_u]
+                new_traj_distr.pol_covar[t, :, :] = sp.linalg.solve_triangular(
                     U, sp.linalg.solve_triangular(L, np.eye(dU), lower=True)
                 )
-                new_traj_distr.chol_pol_covar[t_traj, :, :] = sp.linalg.cholesky(
-                    new_traj_distr.pol_covar[t_traj, :, :]
+                new_traj_distr.chol_pol_covar[t, :, :] = sp.linalg.cholesky(
+                    new_traj_distr.pol_covar[t, :, :]
                 )
 
                 # Compute mean terms.
-                new_traj_distr.k[t_traj, :] = -sp.linalg.solve_triangular(
+                new_traj_distr.k[t, :] = -sp.linalg.solve_triangular(
                     U, sp.linalg.solve_triangular(L, Qt[idx_u], lower=True)
                 )
-                new_traj_distr.K[t_traj, :, :] = -sp.linalg.solve_triangular(
+                new_traj_distr.K[t, :, :] = -sp.linalg.solve_triangular(
                     U, sp.linalg.solve_triangular(L, Qtt[idx_u, idx_x],
                                                   lower=True)
                 )
 
                 # Compute value function.
                 Vxx[t, :, :] = Qtt[idx_x, idx_x] + \
-                        Qtt[idx_x, idx_u].dot(new_traj_distr.K[t_traj, :, :])
-                Vx[t, :] = Qt[idx_x] + Qtt[idx_x, idx_u].dot(new_traj_distr.k[t_traj, :])
+                        Qtt[idx_x, idx_u].dot(new_traj_distr.K[t, :, :])
+                Vx[t, :] = Qt[idx_x] + Qtt[idx_x, idx_u].dot(new_traj_distr.k[t, :])
                 Vxx[t, :, :] = 0.5 * (Vxx[t, :, :] + Vxx[t, :, :].T)
 
             # Increment eta on non-SPD Q-function.
             if fail:
-                #"""
                 old_eta = eta
                 eta = eta0 + del_
-                #LOGGER.debug('Increasing eta: %f -> %f', old_eta, eta)
-                print 'Increasing eta: %f -> %f' % (old_eta, eta)
+                LOGGER.debug('Increasing eta: %f -> %f', old_eta, eta)
                 del_ *= 2  # Increase del_ exponentially on failure.
                 if eta >= 1e16:
                     if np.any(np.isnan(Fm)) or np.any(np.isnan(fv)):
@@ -223,7 +221,6 @@ class MpcTrajOpt(object):
                     raise ValueError('Failed to find PD solution even for very \
                             large eta (check that dynamics and cost are \
                             reasonably well conditioned)!')
-                #"""
         return new_traj_distr
     
     def compute_costs(self, x0, mu, sigma, dX, dU):
