@@ -58,6 +58,8 @@ class GPSMain(object):
             self.use_mpc = True
             config['agent']['T'] = config['agent']['M'] 
             self.mpc_agent = config['agent']['type'](config['agent'])
+            # Useful for MPC Update
+            self.prev_sample = [[i for i in range(config['num_samples'])] for _ in range(config['agent']['conditions'])]
             
 
     def run(self, itr_load=None):
@@ -206,7 +208,7 @@ class GPSMain(object):
             T = self.agent.T
             M = self.mpc_agent.T
             N = int(ceil(T/(M-1.)))
-            X_t = self.agent.x0[cond]
+            X_t = self.agent.x0[cond]  
     
             for n in range(N):
                 # Note: M-1 because action[M] = [0,0].
@@ -214,7 +216,8 @@ class GPSMain(object):
                 reset = True if(n == 0) else False
                 
                 self.algorithm.cur[cond].mpc.update(
-                    self.algorithm.cur[cond].mpc_pol, X_t, pol, 
+                    self.algorithm.cur[cond].mpc_pol, X_t, 
+                    self.prev_sample[cond][i], pol, 
                     self.algorithm.cur[cond].traj_info, t_traj
                 )
                 new_sample = self.mpc_agent.sample(
@@ -238,7 +241,7 @@ class GPSMain(object):
                     t = t+1
                     if t+1 > T: 
                         break
-                    
+            
             self.agent._samples[cond].append(full_sample)
             # Clear agent samples.
             self.mpc_agent.clear_samples()
@@ -247,6 +250,11 @@ class GPSMain(object):
                 pol, cond,
                 verbose=(i < self._hyperparams['verbose_trials'])
             )
+        
+        if self.use_mpc:
+            # Store sample to evaluate cost for next MPC update iteration
+            self.prev_sample[cond][i] = self.agent._samples[cond][i].get_X()
+   
     
     def _take_iteration(self, itr, sample_lists):
         """

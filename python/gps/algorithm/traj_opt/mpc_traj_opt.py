@@ -16,7 +16,7 @@ class MpcTrajOpt(object):
     def __init__(self, M):
         self.M = M
         
-    def update(self, prev_mpc, X_t, traj_distr, traj_info, cur_t):
+    def update(self, prev_mpc, X_t, sample, traj_distr, traj_info, cur_t):
         self.T = traj_distr.T
         dX = traj_distr.dX
         dU = traj_distr.dU
@@ -26,10 +26,16 @@ class MpcTrajOpt(object):
         trajinfo.x0mu = X_t
         trajinfo.x0sigma = 1e-6*np.eye(dX)
         
+        """
         if cur_t+self.M > self.T:
             X_rep = np.tile(X_t, (self.T-cur_t,1))
         else:
             X_rep = np.tile(X_t, (self.M,1))
+        """
+        if cur_t+self.M > self.T:
+            X_rep = sample[cur_t:]
+        else:
+            X_rep = sample[cur_t:cur_t+self.M]
             
         mu, sigma = self.forward(traj_distr, trajinfo, cur_t)
         new_mpc = self.backward(prev_mpc, trajinfo, X_rep, mu, sigma, cur_t)
