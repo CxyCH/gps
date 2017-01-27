@@ -61,9 +61,10 @@ class PointMassWorld(Framework):
                                                 xf2*(0, .5)])],
         )
         
+        self.obstacle_post = np.array([0, 10])
         self.obstacle_shape = [b2.b2PolygonShape(box=(3,1))]
         self.obstacle = self.world.CreateStaticBody(
-            position=np.array([0, 10]),
+            position=self.obstacle_post,
             angle=self.initial_angle,
             shapes=self.obstacle_shape
         )
@@ -111,6 +112,12 @@ class PointMassWorld(Framework):
         self.body.angle = self.initial_angle
         self.body.angularVelocity = self.initial_angular_velocity
         self.body.linearVelocity = self.initial_linear_velocity
+        # Reset obstacle also
+        self.obstacle = self.world.CreateStaticBody(
+            position=self.obstacle_post,
+            angle=self.initial_angle,
+            shapes=self.obstacle_shape
+        )
 
     def get_nearest_dist_obs(self):
         distanceInput = b2.b2DistanceInput();
@@ -122,7 +129,7 @@ class PointMassWorld(Framework):
         distanceInput.useRadii = True
         
         distanceOutput = b2.b2Distance(distanceInput)
-        
+
         """
         # euclidian_dist == distanceOutput.distance
         euclidian_dist = np.sqrt((self.body.position[0] - distanceOutput.pointB[0]) ** 2 + \
