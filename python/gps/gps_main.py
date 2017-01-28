@@ -18,9 +18,11 @@ sys.path.append('/'.join(str.split(__file__, '/')[:-2]))
 from gps.gui.gps_training_gui import GPSTrainingGUI
 from gps.utility.data_logger import DataLogger
 from gps.sample.sample_list import SampleList
-
+from gps.algorithm.traj_opt.mpc_traj_opt import MpcTrajOpt
 from gps.sample.sample import Sample
 from math import ceil
+import numpy as np
+from copy import deepcopy
 
 
 class GPSMain(object):
@@ -58,9 +60,16 @@ class GPSMain(object):
             self.use_mpc = True
             config['agent']['T'] = config['agent']['M'] 
             self.mpc_agent = config['agent']['type'](config['agent'])
-            # Useful for MPC Update
-            self.prev_sample = [[i for i in range(config['num_samples'])] for _ in range(config['agent']['conditions'])]
             
+            # Algorithm __init__ deleted it
+            config['algorithm']['agent'] = self.agent
+            
+            self.mpc = []
+            for m in range(self.algorithm.M):
+                self.mpc.append([])
+                
+                for i in range(config['num_samples']):
+                    self.mpc[m].append(MpcTrajOpt(config['algorithm'], m))            
 
     def run(self, itr_load=None):
         """
@@ -208,20 +217,26 @@ class GPSMain(object):
             T = self.agent.T
             M = self.mpc_agent.T
             N = int(ceil(T/(M-1.)))
-            X_t = self.agent.x0[cond]  
+            X_t = self.agent.x0[cond]
+            
+            # Only forward pass one time per cond, 
+            # because this same for all sample
+            if i == 0:
+                # Note: At this time algorithm.prev = algorithm.cur,
+                #       and prev.traj_info already have x0mu, x0sigma.
+                self.off_prior, _ = self.algorithm.traj_opt.forward(pol, self.algorithm.prev[cond].traj_info)  
     
             for n in range(N):
                 # Note: M-1 because action[M] = [0,0].
                 t_traj = n*(M-1)
                 reset = True if(n == 0) else False
                 
-                self.algorithm.cur[cond].mpc.update(
-                    self.algorithm.cur[cond].mpc_pol, X_t, 
-                    self.prev_sample[cond][i], pol, 
+                mpc_pol = self.mpc[cond][i].update(
+                    n, X_t, self.off_prior, pol, 
                     self.algorithm.cur[cond].traj_info, t_traj
                 )
                 new_sample = self.mpc_agent.sample(
-                    self.algorithm.cur[cond].mpc_pol, cond, 
+                    mpc_pol, cond, 
                     reset=reset, noisy=True,
                     verbose=(i < self._hyperparams['verbose_trials'])
                 )
@@ -250,11 +265,6 @@ class GPSMain(object):
                 pol, cond,
                 verbose=(i < self._hyperparams['verbose_trials'])
             )
-        
-        if self.use_mpc:
-            # Store sample to evaluate cost for next MPC update iteration
-            self.prev_sample[cond][i] = self.agent._samples[cond][i].get_X()
-   
     
     def _take_iteration(self, itr, sample_lists):
         """

@@ -17,8 +17,6 @@ class IterationData(BundleType):
             'cs': None,  # Sample costs of the current iteration.
             'step_mult': 1.0,  # KL step multiplier for the current iteration.
             'eta': 1.0,  # Dual variable used in LQR backward pass.
-            'mpc': None,
-            'mpc_pol': None,
         }
         BundleType.__init__(self, variables)
 

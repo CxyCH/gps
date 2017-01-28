@@ -57,12 +57,14 @@ agent = {
     'pos_body_offset': np.array([]),
     'T': 100,
     'use_mpc': common['use_mpc'],
-    'M': 4,
+    'M': 5,
     'sensor_dims': SENSOR_DIMS,
     'state_include': [END_EFFECTOR_POINTS, END_EFFECTOR_POINT_VELOCITIES],
     'obs_include': [],
-    'smooth_noise_var': 0.3 # 2.0
 }
+
+#if common['use_mpc']:
+#		agent['smooth_noise_var'] = 1.0
 
 algorithm = {
     'type': AlgorithmTrajOpt,
@@ -138,7 +140,7 @@ algorithm['traj_opt'] = {
 algorithm['policy_opt'] = {}
 
 config = {
-    'iterations': 20,
+    'iterations': 15,
     'num_samples': 5,
     'common': common,
     'verbose_trials': 0,
