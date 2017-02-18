@@ -48,7 +48,7 @@ agent = {
     'target_state' : np.array([5, 20, 0]),
     "world" : PointMassWorld,
     'render' : False,
-    'x0': np.array([0, 5, 0, 0, 0, 0]),
+    'x0': [np.array([0, 5, 0, 0, 0, 0])],
     'rk': 0,
     'dt': 0.05,
     'substeps': 1,

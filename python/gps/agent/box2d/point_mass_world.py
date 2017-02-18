@@ -9,7 +9,7 @@ from gps.proto.gps_pb2 import END_EFFECTOR_POINTS, END_EFFECTOR_POINT_VELOCITIES
 class PointMassWorld(Framework):
     """ This class defines the point mass and its environment."""
     name = "PointMass"
-    def __init__(self, x0, target, render):
+    def __init__(self, x0, world_info, target, render):
         self.render = render
         if self.render:
             super(PointMassWorld, self).__init__()

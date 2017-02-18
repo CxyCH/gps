@@ -189,7 +189,7 @@ def evalHessian(func, x, eps=1e-5):
     
 	return h
 
-def runTest(itr_load):
+def runTestMPC(itr_load):
 	data_files_dir = config['common']['data_files_dir']
 	data_logger = DataLogger()
 	
@@ -310,11 +310,43 @@ def runTest(itr_load):
 	agent._worlds[0].clearPose(poseArray)
 	"""
     
+def runTest(itr_load):
+	data_files_dir = config['common']['data_files_dir']
+	data_logger = DataLogger()
+	
+	algorithm_file = data_files_dir + 'algorithm_itr_%02d.pkl' % itr_load
+	algorithm = data_logger.unpickle(algorithm_file)
+	if algorithm is None:
+	    print("Error: cannot find '%s.'" % algorithm_file)
+	    os._exit(1) # called instead of sys.exit(), since this is in a thread
+	
+	#pol = algorithm.cur[0].traj_distr
+	pol = algorithm.policy_opt.policy
+	
+	agent_hyperparams = deepcopy(AGENT)
+	agent_hyperparams.update(config['agent'])
+	
+	x0s = agent_hyperparams["x0"]
+	for cond in range(len(x0s)):
+		T = agent_hyperparams['T']
+		dX = x0s[cond].shape[0]
+		dU = agent_hyperparams['sensor_dims'][ACTION]
+		
+		agent_hyperparams['render'] = True
+		agent = config['agent']['type'](agent_hyperparams)
+		
+		# Sample using offline trajectory distribution.
+		for i in range(config['num_samples']):
+			agent.sample(pol, cond)
+	
 def main():
 	print 'running box2d'
 	
-	exp_name = "box2d_pointmass_example"
+	#exp_name = "box2d_pointmass_example"
+	exp_name = "box2d_pointmass_badmm_example"
 	#exp_name = "box2d_arm_example"
+	#exp_name = "box2d_pointmass_obstacle_example"
+	#exp_name = "box2d_pointmass_obstacle_badmm_example"
 	hyperparams = loadExperiment(exp_name)
 	global config
 	config = hyperparams.config

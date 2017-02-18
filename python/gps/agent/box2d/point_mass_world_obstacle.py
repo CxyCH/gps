@@ -9,7 +9,7 @@ from gps.proto.gps_pb2 import END_EFFECTOR_POINTS, END_EFFECTOR_POINT_VELOCITIES
 class PointMassWorldObstacle(Framework):
     """ This class defines the point mass and its environment."""
     name = "PointMass"
-    def __init__(self, x0, target, render):
+    def __init__(self, x0, world_info, target, render):
         self.render = render
         if self.render:
             super(PointMassWorldObstacle, self).__init__()
@@ -38,10 +38,13 @@ class PointMassWorldObstacle(Framework):
         xf2.angle = -0.3524 * b2.b2_pi
         xf2.position = b2.b2Mul(xf2.R, (-1.0, 0.0))
         
+        """
         self.body_shape = [b2.b2PolygonShape(vertices=[xf1*(-1, 0),
                                                 xf1*(1, 0), xf1*(0, .5)]),
                     b2.b2PolygonShape(vertices=[xf2*(-1, 0),
                                                 xf2*(1, 0), xf2*(0, .5)])]
+        """
+        self.body_shape = [b2.b2PolygonShape(box=(1,1))]
         self.body = self.world.CreateDynamicBody(
             position=self.initial_position,
             angle=self.initial_angle,
@@ -52,6 +55,11 @@ class PointMassWorldObstacle(Framework):
             shapes=self.body_shape,
             shapeFixture=b2.b2FixtureDef(density=1.0),
         )
+        self.initial_pos = self.world.CreateStaticBody(
+            position=self.initial_position,
+            angle=self.initial_angle,
+            shapes=self.body_shape,
+        )
         self.target = self.world.CreateStaticBody(
             position=target[:2],
             angle=self.initial_angle,
@@ -61,15 +69,21 @@ class PointMassWorldObstacle(Framework):
                                                 xf2*(0, .5)])],
         )
         
-        self.obstacle_post = np.array([0, 10])
-        self.obstacle_shape = [b2.b2PolygonShape(box=(3,1))]
-        self.obstacle = self.world.CreateStaticBody(
-            position=self.obstacle_post,
-            angle=self.initial_angle,
-            shapes=self.obstacle_shape
-        )
+        self.obstacle_post = []
+        self.obstacle_shape = []
+        self.obstacle = []
+        obstacles = world_info['obstacles']
+        self.n_obs = len(obstacles)
+        for i in range(self.n_obs):
+            self.obstacle_post.append(obstacles[i][:2])
+            self.obstacle_shape.append([b2.b2PolygonShape(box=tuple(obstacles[i][2:]))])
+            self.obstacle.append(self.world.CreateStaticBody(
+                position=self.obstacle_post[i],
+                angle=self.initial_angle,
+                shapes=self.obstacle_shape[i]
+            ))
         
-        
+        self.initial_pos.active = False
         self.target.active = False
 
     def run(self):
@@ -113,22 +127,32 @@ class PointMassWorldObstacle(Framework):
         self.body.angularVelocity = self.initial_angular_velocity
         self.body.linearVelocity = self.initial_linear_velocity
         # Reset obstacle also
-        self.obstacle = self.world.CreateStaticBody(
-            position=self.obstacle_post,
-            angle=self.initial_angle,
-            shapes=self.obstacle_shape
-        )
+        for i in range(self.n_obs):
+            self.obstacle.append(self.world.CreateStaticBody(
+                position=self.obstacle_post[i],
+                angle=self.initial_angle,
+                shapes=self.obstacle_shape[i]
+            ))
 
     def get_nearest_dist_obs(self):
-        distanceInput = b2.b2DistanceInput();
-        distanceInput.transformA = self.body.transform
-        distanceInput.transformB = self.obstacle.transform
-        # TODO: Show how multi polygon to one shape instance
-        distanceInput.proxyA = b2.b2DistanceProxy(self.body_shape[0])
-        distanceInput.proxyB = b2.b2DistanceProxy(self.obstacle_shape[0])
-        distanceInput.useRadii = True
+        dist = None
+        position = None
         
-        distanceOutput = b2.b2Distance(distanceInput)
+        for i in range(self.n_obs):
+            distanceInput = b2.b2DistanceInput();
+            distanceInput.transformA = self.body.transform
+            distanceInput.transformB = self.obstacle[i].transform
+            # TODO: Show how multi polygon to one shape instance
+            distanceInput.proxyA = b2.b2DistanceProxy(self.body_shape[0])
+            distanceInput.proxyB = b2.b2DistanceProxy(self.obstacle_shape[i][0])
+            distanceInput.useRadii = True
+            
+            distanceOutput = b2.b2Distance(distanceInput)
+            
+            if dist is None or distanceOutput.distance < dist:
+                position = distanceOutput.pointB
+                dist = distanceOutput.distance
+        
 
         """
         # euclidian_dist == distanceOutput.distance
@@ -141,7 +165,7 @@ class PointMassWorldObstacle(Framework):
         return np.array([0.5 * euclidian_dist ** 2])
         """
         
-        return np.append(np.array(distanceOutput.pointB), [0])
+        return np.append(np.array(position), [0])
 
     def drawPose(self, poseArray, position):
         hist = self.world.CreateStaticBody(

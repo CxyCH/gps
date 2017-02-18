@@ -8,7 +8,7 @@ from gps.proto.gps_pb2 import JOINT_ANGLES, JOINT_VELOCITIES, END_EFFECTOR_POINT
 class ArmWorld(Framework):
     """ This class defines the 2 Link Arm and its environment."""
     name = "2 Link Arm"
-    def __init__(self, x0, target, render):
+    def __init__(self, x0, world_info, target, render):
         self.render = render
         if self.render:
             super(ArmWorld, self).__init__()
