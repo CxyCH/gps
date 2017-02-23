@@ -56,7 +56,7 @@ class GPSMain(object):
         self.algorithm = config['algorithm']['type'](config['algorithm'])
         
         self.use_mpc = False
-        if config['common']['use_mpc']:
+        if 'use_mpc' in config['common'] and config['common']['use_mpc']:
             self.use_mpc = True
             config['agent']['T'] = config['agent']['M'] 
             self.mpc_agent = config['agent']['type'](config['agent'])
