@@ -10,6 +10,8 @@
 
 using namespace gps_control;
 
+char* MobileRobotSensor::cost_translation_table_ = NULL;
+
 // Constructor.
 MobileRobotSensor::MobileRobotSensor(ros::NodeHandle& n, RobotPlugin *plugin): Sensor(n, plugin)
 {
@@ -25,7 +27,6 @@ MobileRobotSensor::MobileRobotSensor(ros::NodeHandle& n, RobotPlugin *plugin): S
 	nearest_obstacle_.resize(3);
 
 	// Initialize cost map
-	// TODO: Is needed to create costmap_server and costmap_translator separately
 	tf_ = new tf::TransformListener(ros::Duration(10));
 	costmap_ros_ = new costmap_2d::Costmap2DROS("local_costmap", *tf_);
 	costmap_ros_->start();
@@ -144,15 +145,6 @@ void MobileRobotSensor::set_sample_data(boost::scoped_ptr<Sample>& sample, int t
 
 geometry_msgs::Pose MobileRobotSensor::getCurrentRobotPose()
 {
-	// Get robot pose from local cost_map
-	/*tf::Stamped<tf::Pose> robot_pose;
-	costmap_ros_->getRobotPose(robot_pose);
-
-	geometry_msgs::PoseStamped result;
-	tf::poseStampedTFToMsg(robot_pose, result);
-
-	return result.pose;*/
-
 	geometry_msgs::Pose pose;
 	pose.position.x = position_[0];
 	pose.position.y = position_[1];

@@ -84,7 +84,7 @@ private:
 
 	// Building obstacle tree
 	boost::mutex cost_map_mutex_;
-	char* cost_translation_table_;
+	static char* cost_translation_table_;
 	nav_msgs::GridCells cost_map;
 	flann::Index<flann::L2<float> > * obs_tree;
 	flann::Matrix<float> * data;
