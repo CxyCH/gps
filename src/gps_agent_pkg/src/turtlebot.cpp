@@ -43,8 +43,8 @@ void Turtlebot::init(ros::NodeHandle& n)
 	// TODO: Set topic name by parameters
 	cmd_pub_ = n.advertise<geometry_msgs::Twist>("/cmd_vel_mux/input/navi", 1);
 	// TODO: Set this by parameters
-	linear_velocities_size_ = 3; // Vx
-	angular_velocities_size_ = 3; // Wz (yaw)
+	linear_velocities_size_ = 2; // Vx, Vy
+	angular_velocities_size_ = 1; // Wz (yaw)
 
 	// Action is linear and angular velocity
 	active_arm_torques_.resize(linear_velocities_size_+angular_velocities_size_);
@@ -100,11 +100,13 @@ void Turtlebot::update()
     // Setup action and send to robot
     geometry_msgs::Twist cmd_vel;
     cmd_vel.linear.x = active_arm_torques_[0];
-    cmd_vel.linear.y = active_arm_torques_[1];
+    /*cmd_vel.linear.y = active_arm_torques_[1];
     cmd_vel.linear.z = active_arm_torques_[2];
     cmd_vel.angular.x = active_arm_torques_[3];
     cmd_vel.angular.y = active_arm_torques_[4];
-    cmd_vel.angular.z = active_arm_torques_[5];
+    cmd_vel.angular.z = active_arm_torques_[5];*/
+    cmd_vel.linear.y = active_arm_torques_[1];
+    cmd_vel.angular.z = active_arm_torques_[2];
     cmd_pub_.publish(cmd_vel);
 }
 

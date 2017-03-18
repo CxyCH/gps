@@ -154,7 +154,7 @@ class MpcTrajOpt(object):
         dU = prev_mpc_traj_distr.dU
         dX = prev_mpc_traj_distr.dX
         
-        mpc_traj_distr = prev_mpc_traj_distr.nans_like()
+        mpc_traj_distr = prev_mpc_traj_distr.nans_like(zeros=True)
         
         """
         # TODO: Check BADMM need this?

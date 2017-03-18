@@ -16,7 +16,8 @@ from gps.agent.ros.agent_turtlebot import AgentTurtlebot
 from gps.gui.gps_training_gui import GPSTrainingGUI
 from gps.utility.data_logger import DataLogger
 from gps.sample.sample_list import SampleList
-from gps.proto.gps_pb2 import END_EFFECTOR_POINTS, END_EFFECTOR_POINT_VELOCITIES, POSITION_NEAREST_OBSTACLE, ACTION
+from gps.proto.gps_pb2 import END_EFFECTOR_POINTS, END_EFFECTOR_POINT_VELOCITIES,\
+MOBILE_POSITION, POSITION_NEAREST_OBSTACLE, ACTION
 from gps.sample.sample import Sample
 from gps.algorithm.cost.cost_obstacles import CostObstacle
 from gps.algorithm.cost.cost_state import CostState
@@ -61,10 +62,12 @@ def runTest(itr_load):
 	    print("Error: cannot find '%s.'" % algorithm_file)
 	    os._exit(1) # called instead of sys.exit(), since this is in a thread
 	
-	pol = algorithm.cur[0].traj_distr
-	#pol = algorithm.policy_opt.policy
+	#pol = algorithm.cur[0].traj_distr
+	pol = algorithm.policy_opt.policy
 	agent_hyperparams = deepcopy(AGENT)
 	agent_hyperparams.update(config['agent'])
+	cost_obstacle = CostObstacle(config['algorithm']['cost']['costs'][2])
+	cost_state = CostState(config['algorithm']['cost']['costs'][1])
 	
 	x0s = agent_hyperparams["x0"]
 	for cond in range(len(x0s)):
@@ -81,13 +84,24 @@ def runTest(itr_load):
 			raw_input("Get data")
 		'''
 		# Sample using offline trajectory distribution.
-		for i in range(config['num_samples']):
-			agent.sample(pol, cond)
+		#for i in range(config['num_samples']):
+		sample = agent.sample(pol, cond, noisy = True)
+		l, lx, lu, lxx, luu, lux = cost_obstacle.eval(sample)
+		sl, slx, slu, slxx, sluu, slux = cost_state.eval(sample)
+		
+		for t in range(T):
+			state = sample.get(MOBILE_POSITION, t)
+			obs = sample.get(POSITION_NEAREST_OBSTACLE, t)
+			dist = np.sqrt(np.sum((state - obs)**2))
+			print state, obs, dist, 0.5*dist**2, l[t], sl[t]
+			#print sl[t]
+			#print lx[t]
+		raw_input("Get data")
 	
 def main():
 	print 'running ros'
-	
-	exp_name = "turtlebot_example"
+	#exp_name = "turtlebot_badmm_example"
+	exp_name = "turtlebot_hallway_badmm_example"
 	hyperparams = loadExperiment(exp_name)
 	global config
 	config = hyperparams.config

@@ -106,7 +106,7 @@ class AgentTurtlebot(Agent):
         time.sleep(2.0)  # useful for the real robot, so it stops completely
 
     # TODO: CHECK THIS
-    def sample(self, policy, condition, verbose=True, save=True, noisy=True):
+    def sample(self, policy, condition, reset=True, verbose=True, save=True, noisy=True):
         """
         Reset and execute a policy and collect a sample.
         Args:
@@ -118,14 +118,15 @@ class AgentTurtlebot(Agent):
         Returns:
             sample: A Sample object.
         """
-        
-        self.reset(condition)
+        if reset:
+            self.reset(condition)
         # Generate noise.
         if noisy:
             noise = generate_noise(self.T, self.dU, self._hyperparams)
         else:
             noise = np.zeros((self.T, self.dU))
-
+        noise = noise*0.01
+        
         # Execute trial.
         trial_command = TrialCommand()
         trial_command.id = self._get_next_seq_id()

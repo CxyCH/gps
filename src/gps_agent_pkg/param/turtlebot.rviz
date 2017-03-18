@@ -4,10 +4,8 @@ Panels:
     Name: Displays
     Property Tree Widget:
       Expanded:
-        - /RobotModel1
         - /TF1/Frames1
         - /TF1/Tree1
-        - /CostMap1
       Splitter Ratio: 0.5
     Tree Height: 505
   - Class: rviz/Selection

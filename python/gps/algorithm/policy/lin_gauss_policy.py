@@ -50,13 +50,18 @@ class LinearGaussianPolicy(Policy):
         Returns:
             k: A T x dU bias vector.
         """
+        mean_noise = np.zeros_like(noise)
         k = np.zeros_like(self.k)
         for i in range(self.T):
             scaled_noise = self.chol_pol_covar[i].T.dot(noise[i])
             k[i] = scaled_noise + self.k[i]
+            mean_noise[i] = np.abs(scaled_noise)
+            #print "T ", i, scaled_noise
+        
+        print "Mean ", np.mean(mean_noise, axis=0)
         return k
 
-    def nans_like(self):
+    def nans_like(self, zeros=False):
         """
         Returns:
             A new linear Gaussian policy object with the same dimensions
@@ -67,9 +72,11 @@ class LinearGaussianPolicy(Policy):
             np.zeros_like(self.pol_covar), np.zeros_like(self.chol_pol_covar),
             np.zeros_like(self.inv_pol_covar)
         )
-        policy.K.fill(np.nan)
-        policy.k.fill(np.nan)
-        policy.pol_covar.fill(np.nan)
-        policy.chol_pol_covar.fill(np.nan)
-        policy.inv_pol_covar.fill(np.nan)
+        if zeros == False:
+            policy.K.fill(np.nan)
+            policy.k.fill(np.nan)
+            policy.pol_covar.fill(np.nan)
+            policy.chol_pol_covar.fill(np.nan)
+            policy.inv_pol_covar.fill(np.nan)
+
         return policy

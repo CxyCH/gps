@@ -90,6 +90,8 @@ void MobileRobotSensor::update(RobotPlugin *plugin, ros::Time current_time, bool
 		nearest_obstacle_[1] = obs_pose.b;
 		nearest_obstacle_[2] = 0.0;
 
+		ROS_INFO("Min distance: %f, Pose: %f, %f", minDist, obs_pose.a, obs_pose.b);
+
 		previous_pose_time_ = current_time;
 	}
 }
@@ -210,7 +212,7 @@ void MobileRobotSensor::updateObstacleTree(costmap_2d::Costmap2D *costmap)
 	{
 		for(unsigned int j = 0; j < width; ++j)
 		{
-		  if(grid_data[i*height+j] == 100)
+		  if(grid_data[i*height+j] == 99)
 		  {
 			geometry_msgs::Point obstacle_coordinates;
 			obstacle_coordinates.x = (j * obstacles.cell_height) + x + (resolution/2.0);
@@ -327,7 +329,9 @@ double MobileRobotSensor::min_distance_to_obstacle(geometry_msgs::Pose local_cur
 	double minDist = 100000;
 	double head = 0;
 
-	double SOME_THRESH = 1.5;
+	minDist = distance(local_current_pose.position.x, local_current_pose.position.y, nn_graph_point.p.a, nn_graph_point.p.b);
+
+	/*double SOME_THRESH = 1.5;
 
 	if(nn_graph_point.dist < SOME_THRESH)
 	{
@@ -359,7 +363,9 @@ double MobileRobotSensor::min_distance_to_obstacle(geometry_msgs::Pose local_cur
 	  obs_pose->a = nn_graph_point.p.a;
 	  obs_pose->b = nn_graph_point.p.b;
 	  //ROS_INFO("Got nearest neighbor, poly dist: %f", minDist);
-	}
+	}*/
+	obs_pose->a = nn_graph_point.p.a;
+	obs_pose->b = nn_graph_point.p.b;
 	*heading = head;
 
 	return minDist;
