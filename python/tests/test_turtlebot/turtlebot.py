@@ -77,6 +77,7 @@ def runTest(itr_load):
 		
 		agent_hyperparams['render'] = True
 		agent = config['agent']['type'](agent_hyperparams)
+		time.sleep(1) # Time for init node
 		
 		'''
 		while True:
@@ -96,12 +97,12 @@ def runTest(itr_load):
 			print state, obs, dist, 0.5*dist**2, l[t], sl[t]
 			#print sl[t]
 			#print lx[t]
-		raw_input("Get data")
 	
 def main():
 	print 'running ros'
-	#exp_name = "turtlebot_badmm_example"
-	exp_name = "turtlebot_hallway_badmm_example"
+	#exp_name = "turtlebot_example"
+	exp_name = "turtlebot_badmm_example"
+	#exp_name = "turtlebot_hallway_example"
 	hyperparams = loadExperiment(exp_name)
 	global config
 	config = hyperparams.config

@@ -8,7 +8,7 @@ import numpy as np
 
 from gps import __file__ as gps_filepath
 from gps.agent.ros.agent_turtlebot import AgentTurtlebot
-from gps.algorithm.algorithm_traj_opt import AlgorithmTrajOpt
+from gps.algorithm.algorithm_badmm import AlgorithmBADMM
 from gps.algorithm.cost.cost_fk import CostFK
 from gps.algorithm.cost.cost_action import CostAction
 from gps.algorithm.cost.cost_state import CostState
@@ -17,7 +17,9 @@ from gps.algorithm.cost.cost_sum import CostSum
 from gps.algorithm.cost.cost_utils import RAMP_LINEAR, RAMP_FINAL_ONLY
 from gps.algorithm.dynamics.dynamics_lr_prior import DynamicsLRPrior
 from gps.algorithm.dynamics.dynamics_prior_gmm import DynamicsPriorGMM
+from gps.algorithm.policy.policy_prior_gmm import PolicyPriorGMM
 from gps.algorithm.traj_opt.traj_opt_lqr_python import TrajOptLQRPython
+from gps.algorithm.policy_opt.policy_opt_caffe import PolicyOptCaffe
 from gps.algorithm.policy.lin_gauss_init import init_lqr, init_pd
 from gps.gui.target_setup_gui import load_pose_from_npz
 from gps.proto.gps_pb2 import MOBILE_POSITION, MOBILE_ORIENTATION, \
@@ -35,19 +37,95 @@ SENSOR_DIMS = {
 }
 
 BASE_DIR = '/'.join(str.split(gps_filepath, '/')[:-2])
-EXP_DIR = BASE_DIR + '/../experiments/turtlebot_example/'
+EXP_DIR = BASE_DIR + '/../experiments/turtlebot_badmm_example/'
 
 # NOTE: This is odom pose.
 # Default is in one_stacle.world
-
+'''
+x0s = [np.array([2., 0., 0.,		# Position x, y, z
+								0., 0., 0., 1.,	# Quaternion x, y, z, w
+								0., 0., 0.,			# Linear Velocities
+								0., 0., 0.]),
+			np.array([1., 0., 0.,			# Position x, y, z
+								0., 0., 0., 1.,	# Quaternion x, y, z, w
+								0., 0., 0.,			# Linear Velocities
+								0., 0., 0.]),
+			np.array([2., -0.5, 0.,		# Position x, y, z
+								0., 0., 0., 1.,	# Quaternion x, y, z, w
+								0., 0., 0.,			# Linear Velocities
+								0., 0., 0.]),
+			np.array([1., 0.5, 0.,			# Position x, y, z
+								0., 0., 0., 1.,	# Quaternion x, y, z, w
+								0., 0., 0.,			# Linear Velocities
+								0., 0., 0.])]
+'''
+	
 odom_pose = [1.5, 8.3, 0.]
 x0s = []
 reset_conditions = []
+
 # NOTE: This is map pose (The order of quaternion also different).
-map_state = [np.array([3.5, 8.3, 0.,	# Position x, y, z
+map_state = [np.array([4.0, 8.3, 0.,	# Position x, y, z
 								1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
 								0., 0., 0.,			# Linear Velocities
-								0., 0., 0.])]		# Angular Velocities
+								0., 0., 0.]),		# Angular Velocities
+								np.array([4.0, 8.0, 0.,	# Position x, y, z
+								1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
+								0., 0., 0.,			# Linear Velocities
+								0., 0., 0.]),		# Angular Velocities
+								np.array([4.0, 8.6, 0.,	# Position x, y, z
+								1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
+								0., 0., 0.,			# Linear Velocities
+								0., 0., 0.]),		# Angular Velocities
+								np.array([4.0, 7.4, 0.,	# Position x, y, z
+								1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
+								0., 0., 0.,			# Linear Velocities
+								0., 0., 0.]),		# Angular Velocities
+								np.array([4.0, 9.2, 0.,	# Position x, y, z
+								1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
+								0., 0., 0.,			# Linear Velocities
+								0., 0., 0.]),		# Angular Velocities
+								np.array([3.5, 8.3, 0.,	# Position x, y, z
+								1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
+								0., 0., 0.,			# Linear Velocities
+								0., 0., 0.]),		# Angular Velocities
+								np.array([3.5, 8.0, 0.,	# Position x, y, z
+								1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
+								0., 0., 0.,			# Linear Velocities
+								0., 0., 0.]),		# Angular Velocities
+								np.array([3.5, 8.6, 0.,	# Position x, y, z
+								1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
+								0., 0., 0.,			# Linear Velocities
+								0., 0., 0.]),		# Angular Velocities
+								np.array([3.5, 7.4, 0.,	# Position x, y, z
+								1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
+								0., 0., 0.,			# Linear Velocities
+								0., 0., 0.]),		# Angular Velocities
+								np.array([3.5, 9.2, 0.,	# Position x, y, z
+								1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
+								0., 0., 0.,			# Linear Velocities
+								0., 0., 0.]),		# Angular Velocities
+								np.array([4.5, 8.3, 0.,	# Position x, y, z
+								1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
+								0., 0., 0.,			# Linear Velocities
+								0., 0., 0.]),		# Angular Velocities
+								np.array([4.5, 8.0, 0.,	# Position x, y, z
+								1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
+								0., 0., 0.,			# Linear Velocities
+								0., 0., 0.]),		# Angular Velocities
+								np.array([4.5, 8.6, 0.,	# Position x, y, z
+								1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
+								0., 0., 0.,			# Linear Velocities
+								0., 0., 0.]),		# Angular Velocities
+								np.array([4.5, 7.4, 0.,	# Position x, y, z
+								1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
+								0., 0., 0.,			# Linear Velocities
+								0., 0., 0.]),		# Angular Velocities
+								np.array([4.5, 9.2, 0.,	# Position x, y, z
+								1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
+								0., 0., 0.,			# Linear Velocities
+								0., 0., 0.]),		# Angular Velocities
+								]
 common = {
     'experiment_name': 'my_experiment' + '_' + \
             datetime.strftime(datetime.now(), '%m-%d-%y_%H-%M'),
@@ -55,7 +133,7 @@ common = {
     'data_files_dir': EXP_DIR + 'data_files/',
     'target_filename': EXP_DIR + 'target.npz',
     'log_filename': EXP_DIR + 'log.txt',
-    'conditions': 1,
+    'conditions': len(map_state),
     'use_mpc': True,
 }
 
@@ -90,14 +168,23 @@ agent = {
     'sensor_dims': SENSOR_DIMS,
     'state_include': [MOBILE_POSITION, MOBILE_ORIENTATION, \
 				MOBILE_VELOCITIES_LINEAR, MOBILE_VELOCITIES_ANGULAR],
-    'obs_include': [],
+    'obs_include': [MOBILE_POSITION, MOBILE_ORIENTATION, \
+				MOBILE_VELOCITIES_LINEAR, MOBILE_VELOCITIES_ANGULAR],
 }
 
 algorithm = {
-    'type': AlgorithmTrajOpt,
+    'type': AlgorithmBADMM,
     'conditions': common['conditions'],
-    'use_mpc': common['use_mpc'],
     'iterations': 10,
+    'lg_step_schedule': np.array([1e-4, 1e-3, 1e-2, 1e-2]),
+    'policy_dual_rate': 0.2,
+    'ent_reg_schedule': np.array([1e-3, 1e-3, 1e-2, 1e-1]),
+    'fixed_lg_step': 3,
+    'kl_step': 5.0,
+    'min_step_mult': 0.01,
+    'max_step_mult': 1.0,
+    'sample_decrease_var': 0.05,
+    'sample_increase_var': 0.1,
 }
 
 algorithm['init_traj_distr'] = {
@@ -118,24 +205,25 @@ algorithm['init_mpc'] = {
     'T': agent['M'],
 }
 
+
 action_cost = {
     'type': CostAction,
-    'wu': np.ones(SENSOR_DIMS[ACTION])*5e-3
+    'wu': np.ones(SENSOR_DIMS[ACTION])*5e-4
 }
 
 state_cost = {
     'type': CostState,
     'data_types' : {
         MOBILE_ORIENTATION: {
-            'wp': np.ones(SENSOR_DIMS[MOBILE_ORIENTATION])*10000.,
+            'wp': np.ones(SENSOR_DIMS[MOBILE_ORIENTATION])*1000.,
             'target_state': np.array([0., 0., 0., 1.]),
         },
         MOBILE_VELOCITIES_LINEAR: {
-            'wp': np.ones(SENSOR_DIMS[MOBILE_VELOCITIES_LINEAR])*1000.0,
+            'wp': np.ones(SENSOR_DIMS[MOBILE_VELOCITIES_LINEAR])*100.,
             'target_state': np.array([1.0, 0., 0.]),
         },
         MOBILE_VELOCITIES_ANGULAR: {
-            'wp': np.ones(SENSOR_DIMS[MOBILE_VELOCITIES_ANGULAR])*250.,
+            'wp': np.ones(SENSOR_DIMS[MOBILE_VELOCITIES_ANGULAR])*25.,
             'target_state': np.array([0., 0., 0.]),
         },
     },
@@ -174,12 +262,23 @@ algorithm['traj_opt'] = {
     'type': TrajOptLQRPython,
 }
 
-algorithm['policy_opt'] = {}
+algorithm['policy_opt'] = {
+    'type': PolicyOptCaffe,
+    'weights_file_prefix': EXP_DIR + 'policy',
+}
+
+algorithm['policy_prior'] = {
+    'type': PolicyPriorGMM,
+    'max_clusters': 20,
+    'min_samples_per_cluster': 40,
+    'max_samples': 20,
+}
 
 config = {
     'iterations': algorithm['iterations'],
     'common': common,
     'verbose_trials': 0,
+    'verbose_policy_trials': 1,
     'agent': agent,
     'gui_on': True,
     'algorithm': algorithm,

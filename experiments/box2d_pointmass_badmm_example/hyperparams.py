@@ -38,7 +38,7 @@ common = {
     'data_files_dir': EXP_DIR + 'data_files/',
     'log_filename': EXP_DIR + 'log.txt',
     'conditions': 4,
-    'use_mpc': False,
+    'use_mpc': True,
 }
 
 if not os.path.exists(common['data_files_dir']):
@@ -92,6 +92,14 @@ algorithm['init_traj_distr'] = {
     'T': agent['T'],
 }
 
+algorithm['init_mpc'] = {
+    'type': init_pd,
+    'init_var': 5.0,
+    'pos_gains': 0.0,
+    'dQ': SENSOR_DIMS[ACTION],
+    'dt': agent['dt'],
+    'T': agent['M'],
+}
 
 action_cost = {
     'type': CostAction,

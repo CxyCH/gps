@@ -31,7 +31,8 @@ SENSOR_DIMS = {
     MOBILE_ORIENTATION: 4,
     MOBILE_VELOCITIES_LINEAR: 3,
     MOBILE_VELOCITIES_ANGULAR: 3,
-    ACTION: 3
+    #ACTION: 6,
+    ACTION: 2
 }
 
 BASE_DIR = '/'.join(str.split(gps_filepath, '/')[:-2])
@@ -39,15 +40,23 @@ EXP_DIR = BASE_DIR + '/../experiments/turtlebot_example/'
 
 # NOTE: This is odom pose.
 # Default is in one_stacle.world
-
-odom_pose = [1.5, 8.3, 0.]
-x0s = []
-reset_conditions = []
+x0s = [np.array([0., 0., 0.,		# Position x, y, z
+								0., 0., 0., 1.,	# Quaternion x, y, z, w
+								0., 0., 0.,			# Linear Velocities
+								0., 0., 0.])]
+ee_tgts = []
 # NOTE: This is map pose (The order of quaternion also different).
-map_state = [np.array([3.5, 8.3, 0.,	# Position x, y, z
+#'''
+reset_conditions = [np.array([4.5, 8.3, 0.,	# Position x, y, z
 								1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
 								0., 0., 0.,			# Linear Velocities
 								0., 0., 0.])]		# Angular Velocities
+'''
+reset_conditions = [np.array([3.5, 10., 0.,	# Position x, y, z
+								1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
+								0., 0., 0.,			# Linear Velocities
+								0., 0., 0.])]		# Angular Velocities
+'''
 common = {
     'experiment_name': 'my_experiment' + '_' + \
             datetime.strftime(datetime.now(), '%m-%d-%y_%H-%M'),
@@ -56,27 +65,10 @@ common = {
     'target_filename': EXP_DIR + 'target.npz',
     'log_filename': EXP_DIR + 'log.txt',
     'conditions': 1,
-    'use_mpc': True,
 }
 
 if not os.path.exists(common['data_files_dir']):
     os.makedirs(common['data_files_dir'])
-
-for i in xrange(common['conditions']):
-		idx_pos = SENSOR_DIMS[MOBILE_POSITION]
-		idx_ori = SENSOR_DIMS[MOBILE_ORIENTATION]
-		
-		state = np.zeros(map_state[i].size)
-		state[:idx_pos] = map_state[i][:idx_pos] - odom_pose
-		
-		# Change orientation
-		state[idx_pos] = map_state[i][idx_pos+2] # w
-		state[idx_pos+1] = map_state[i][idx_pos+3] # z
-		state[idx_pos+2] = map_state[i][idx_pos+1] # x
-		state[idx_pos+3] = map_state[i][idx_pos] # y
-		
-		x0s.append(state)
-		reset_conditions.append(map_state[i])
 
 agent = {
     'type': AgentTurtlebot,
@@ -84,8 +76,6 @@ agent = {
     'conditions': common['conditions'],
     'T': 100,
     'x0': x0s,
-    'use_mpc': common['use_mpc'],
-    'M': 5,
     'reset_conditions': reset_conditions,
     'sensor_dims': SENSOR_DIMS,
     'state_include': [MOBILE_POSITION, MOBILE_ORIENTATION, \
@@ -96,8 +86,7 @@ agent = {
 algorithm = {
     'type': AlgorithmTrajOpt,
     'conditions': common['conditions'],
-    'use_mpc': common['use_mpc'],
-    'iterations': 10,
+    'iterations': 15,
 }
 
 algorithm['init_traj_distr'] = {
@@ -109,33 +98,31 @@ algorithm['init_traj_distr'] = {
     'T': agent['T'],
 }
 
-algorithm['init_mpc'] = {
-    'type': init_pd,
-    'init_var': 5.0,
-    'pos_gains': 0.0,
-    'dQ': SENSOR_DIMS[ACTION],
-    'dt': agent['dt'],
-    'T': agent['M'],
-}
 
 action_cost = {
     'type': CostAction,
-    'wu': np.ones(SENSOR_DIMS[ACTION])*5e-3
+    'wu': np.ones(SENSOR_DIMS[ACTION])*5e-5
 }
 
 state_cost = {
     'type': CostState,
     'data_types' : {
+				#MOBILE_POSITION: {
+            #'wp': np.ones(SENSOR_DIMS[MOBILE_POSITION])*0.025,
+            #'target_state': np.array([20.]),
+            #'ramp_option': RAMP_LINEAR,
+            #'sup_key': [0],
+        #},
         MOBILE_ORIENTATION: {
-            'wp': np.ones(SENSOR_DIMS[MOBILE_ORIENTATION])*10000.,
+            'wp': np.ones(SENSOR_DIMS[MOBILE_ORIENTATION])*7.5,
             'target_state': np.array([0., 0., 0., 1.]),
         },
         MOBILE_VELOCITIES_LINEAR: {
-            'wp': np.ones(SENSOR_DIMS[MOBILE_VELOCITIES_LINEAR])*1000.0,
+            'wp': np.ones(SENSOR_DIMS[MOBILE_VELOCITIES_LINEAR])*2.5,
             'target_state': np.array([1.0, 0., 0.]),
         },
         MOBILE_VELOCITIES_ANGULAR: {
-            'wp': np.ones(SENSOR_DIMS[MOBILE_VELOCITIES_ANGULAR])*250.,
+            'wp': np.ones(SENSOR_DIMS[MOBILE_VELOCITIES_ANGULAR])*0.25,
             'target_state': np.array([0., 0., 0.]),
         },
     },
@@ -147,7 +134,7 @@ obstacle_cost = {
     'data_types' : {
         MOBILE_POSITION: {
             'wp': np.ones(SENSOR_DIMS[MOBILE_POSITION]),
-            'd_safe': 0.4 # Note that it 0.5*d^2
+            'd_safe': 1.5
         },
     },
 }
@@ -155,7 +142,9 @@ obstacle_cost = {
 algorithm['cost'] = {
     'type': CostSum,
     'costs': [action_cost, state_cost, obstacle_cost],
-    'weights': [1.0, 1.0, 1000.0],
+    'weights': [1.0, 1.0, 2.5],
+    #'costs': [action_cost, state_cost],
+    #'weights': [1.0, 1.0],
 }
 
 
