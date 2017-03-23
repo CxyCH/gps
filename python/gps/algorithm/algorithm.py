@@ -77,6 +77,15 @@ class Algorithm(object):
                 for _ in range(self.M)
             ]
         self.base_kl_step = self._hyperparams['kl_step']
+        
+        self.mpc = [] # For initialize
+        
+    def init_mpc(self, num_samples, hyperparams):
+        for m in range(self.M):
+            self.mpc.append([])
+            
+            for i in range(num_samples):
+                self.mpc[m].append(MpcTrajOpt(hyperparams, m))
 
     @abc.abstractmethod
     def iteration(self, sample_list):
