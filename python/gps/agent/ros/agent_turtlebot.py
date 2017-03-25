@@ -138,7 +138,7 @@ class AgentTurtlebot(Agent):
         trial_command.ee_points = []
         trial_command.ee_points_tgt = []
         trial_command.state_datatypes = self._hyperparams['state_include']
-        trial_command.obs_datatypes = self._hyperparams['state_include']
+        trial_command.obs_datatypes = self._hyperparams['obs_include']
         
         sample_msg = self._trial_service.publish_and_wait(
             trial_command, timeout=self._hyperparams['trial_timeout']

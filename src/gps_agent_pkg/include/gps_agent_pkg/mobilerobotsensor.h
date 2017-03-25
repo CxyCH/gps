@@ -22,6 +22,7 @@
 #include <geometry_msgs/PoseArray.h>
 #include <geometry_msgs/Vector3.h>
 #include <geometry_msgs/Quaternion.h>
+#include <sensor_msgs/LaserScan.h>
 #include <vector>
 #include "flann/flann.hpp"
 
@@ -72,9 +73,13 @@ private:
 	Eigen::VectorXd angular_velocities_;
 	// Position to nearest obstacle
 	Eigen::VectorXd nearest_obstacle_;
+	// Array of range sensor data
+	Eigen::VectorXd range_data_;
 	// Subscribers
 	ros::Subscriber subscriber_;
+	ros::Subscriber range_subscriber_;
 	std::string topic_name_;
+	std::string range_topic_name_;
 
 	// Time from last update when the previous pose were recorded (necessary to compute velocities).
 	ros::Time previous_pose_time_;
@@ -97,7 +102,10 @@ private:
 	vector<MinDistResult> find_points_within_threshold(Point newPoint, double threshold);
 	MinDistResult find_nearest_neighbor(Point queryPoint);
 	double min_distance_to_obstacle(geometry_msgs::Pose local_current_pose, double *heading, Point *obs_pose);
+
+	// Subscriber topic
 	void update_data_vector(const nav_msgs::Odometry::ConstPtr& msg);
+	void update_range_data(const sensor_msgs::LaserScan::ConstPtr& msg);
 
 public:
 	// Constructor.

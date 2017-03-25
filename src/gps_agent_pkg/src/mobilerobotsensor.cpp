@@ -26,6 +26,9 @@ MobileRobotSensor::MobileRobotSensor(ros::NodeHandle& n, RobotPlugin *plugin): S
 	// Initial position of nearest obstacle.
 	nearest_obstacle_.resize(3);
 
+	// TODO: using parameter
+	range_data_.resize(30);
+
 	// Initialize cost map
 	tf_ = new tf::TransformListener(ros::Duration(10));
 	costmap_ros_ = new costmap_2d::Costmap2DROS("local_costmap", *tf_);
@@ -57,6 +60,8 @@ MobileRobotSensor::MobileRobotSensor(ros::NodeHandle& n, RobotPlugin *plugin): S
 	// TODO: Get topic name by parameter
 	topic_name_ = "/odom";
 	subscriber_ = n.subscribe(topic_name_, 1, &MobileRobotSensor::update_data_vector, this);
+	range_topic_name_ = "/scan";
+	range_subscriber_ = n.subscribe(range_topic_name_, 1, &MobileRobotSensor::update_range_data, this);
 
 	// Set time.
 	previous_pose_time_ = ros::Time(0.0); // This ignores the velocities on the first step.
@@ -124,6 +129,11 @@ void MobileRobotSensor::set_sample_data_format(boost::scoped_ptr<Sample>& sample
 	OptionsMap angular_velocities_metadata;
 	sample->set_meta_data(gps::MOBILE_VELOCITIES_ANGULAR,angular_velocities_.size(),SampleDataFormatEigenVector,angular_velocities_metadata);
 
+	// Set range data size and format.
+	OptionsMap range_metadata;
+	sample->set_meta_data(gps::MOBILE_RANGE_SENSOR,range_data_.size(),SampleDataFormatEigenVector,range_metadata);
+
+
 }
 
 // Set data on the provided sample.
@@ -143,6 +153,9 @@ void MobileRobotSensor::set_sample_data(boost::scoped_ptr<Sample>& sample, int t
 
 	// Set angular velocities.
 	sample->set_data_vector(t,gps::MOBILE_VELOCITIES_ANGULAR,angular_velocities_.data(),angular_velocities_.size(),SampleDataFormatEigenVector);
+
+	// Set range data.
+	sample->set_data_vector(t,gps::MOBILE_RANGE_SENSOR,range_data_.data(),range_data_.size(),SampleDataFormatEigenVector);
 }
 
 geometry_msgs::Pose MobileRobotSensor::getCurrentRobotPose()
@@ -181,6 +194,14 @@ void MobileRobotSensor::update_data_vector(const nav_msgs::Odometry::ConstPtr& m
 	angular_velocities_[2] = msg->twist.twist.angular.z;
 }
 
+void MobileRobotSensor::update_range_data(const sensor_msgs::LaserScan::ConstPtr& msg)
+{
+	for(int i=0; i < range_data_.size(); i++)
+	{
+		range_data_[i] = msg->ranges[i];
+	}
+}
+
 void MobileRobotSensor::updateObstacleTree(costmap_2d::Costmap2D *costmap)
 {
 	// Create occupancy grid message
@@ -212,7 +233,7 @@ void MobileRobotSensor::updateObstacleTree(costmap_2d::Costmap2D *costmap)
 	{
 		for(unsigned int j = 0; j < width; ++j)
 		{
-		  if(grid_data[i*height+j] == 99)
+		  if(grid_data[i*height+j] == 100)
 		  {
 			geometry_msgs::Point obstacle_coordinates;
 			obstacle_coordinates.x = (j * obstacles.cell_height) + x + (resolution/2.0);

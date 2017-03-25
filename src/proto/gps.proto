@@ -28,7 +28,8 @@ enum SampleType {
   MOBILE_ORIENTATION = 21;
   MOBILE_VELOCITIES_LINEAR = 22;
   MOBILE_VELOCITIES_ANGULAR = 23;
-  TOTAL_DATA_TYPES = 24;
+  MOBILE_RANGE_SENSOR = 24;
+  TOTAL_DATA_TYPES = 25;
 }
 
 // Message containing the data for a single sample.
