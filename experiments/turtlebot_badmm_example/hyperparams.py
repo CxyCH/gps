@@ -24,7 +24,7 @@ from gps.algorithm.policy.lin_gauss_init import init_lqr, init_pd
 from gps.gui.target_setup_gui import load_pose_from_npz
 from gps.proto.gps_pb2 import MOBILE_POSITION, MOBILE_ORIENTATION, \
 				MOBILE_VELOCITIES_LINEAR, MOBILE_VELOCITIES_ANGULAR, ACTION, \
-				POSITION_NEAREST_OBSTACLE
+				POSITION_NEAREST_OBSTACLE, MOBILE_RANGE_SENSOR
 from gps.utility.general_utils import get_ee_points
 from gps.gui.config import generate_experiment_info
 
@@ -33,6 +33,7 @@ SENSOR_DIMS = {
     MOBILE_ORIENTATION: 4,
     MOBILE_VELOCITIES_LINEAR: 3,
     MOBILE_VELOCITIES_ANGULAR: 3,
+    MOBILE_RANGE_SENSOR: 30,
     ACTION: 3
 }
 
@@ -41,59 +42,79 @@ EXP_DIR = BASE_DIR + '/../experiments/turtlebot_badmm_example/'
 
 # NOTE: This is odom pose.
 # Default is in one_stacle.world
-'''
-x0s = [np.array([2., 0., 0.,		# Position x, y, z
-								0., 0., 0., 1.,	# Quaternion x, y, z, w
-								0., 0., 0.,			# Linear Velocities
-								0., 0., 0.]),
-			np.array([1., 0., 0.,			# Position x, y, z
-								0., 0., 0., 1.,	# Quaternion x, y, z, w
-								0., 0., 0.,			# Linear Velocities
-								0., 0., 0.]),
-			np.array([2., -0.5, 0.,		# Position x, y, z
-								0., 0., 0., 1.,	# Quaternion x, y, z, w
-								0., 0., 0.,			# Linear Velocities
-								0., 0., 0.]),
-			np.array([1., 0.5, 0.,			# Position x, y, z
-								0., 0., 0., 1.,	# Quaternion x, y, z, w
-								0., 0., 0.,			# Linear Velocities
-								0., 0., 0.])]
-'''
-	
 odom_pose = [1.5, 8.3, 0.]
 x0s = []
 reset_conditions = []
 
 # NOTE: This is map pose (The order of quaternion also different).
-map_state = [np.array([4.0, 8.3, 0.,	# Position x, y, z
+map_state = [np.array([4.0, 7.6, 0.,	# Position x, y, z
 								1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
 								0., 0., 0.,			# Linear Velocities
 								0., 0., 0.]),		# Angular Velocities
-								np.array([4.0, 8.0, 0.,	# Position x, y, z
+								np.array([4.0, 9.0, 0.,	# Position x, y, z
 								1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
 								0., 0., 0.,			# Linear Velocities
 								0., 0., 0.]),		# Angular Velocities
-								np.array([4.0, 8.6, 0.,	# Position x, y, z
-								1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
-								0., 0., 0.,			# Linear Velocities
-								0., 0., 0.]),		# Angular Velocities
-								np.array([4.0, 7.4, 0.,	# Position x, y, z
-								1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
-								0., 0., 0.,			# Linear Velocities
-								0., 0., 0.]),		# Angular Velocities
-								np.array([4.0, 9.2, 0.,	# Position x, y, z
-								1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
-								0., 0., 0.,			# Linear Velocities
-								0., 0., 0.]),		# Angular Velocities
-								np.array([3.5, 8.3, 0.,	# Position x, y, z
-								1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
-								0., 0., 0.,			# Linear Velocities
-								0., 0., 0.]),		# Angular Velocities
-								np.array([3.5, 8.0, 0.,	# Position x, y, z
-								1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
-								0., 0., 0.,			# Linear Velocities
-								0., 0., 0.]),		# Angular Velocities
-								np.array([3.5, 8.6, 0.,	# Position x, y, z
+								#np.array([4.5, 7.2, 0.,	# Position x, y, z
+								#1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
+								#0., 0., 0.,			# Linear Velocities
+								#0., 0., 0.]),		# Angular Velocities
+								#np.array([5.5, 6.8, 0.,	# Position x, y, z
+								#1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
+								#0., 0., 0.,			# Linear Velocities
+								#0., 0., 0.]),		# Angular Velocities
+								#np.array([6.5, 6.8, 0.,	# Position x, y, z
+								#1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
+								#0., 0., 0.,			# Linear Velocities
+								#0., 0., 0.]),		# Angular Velocities
+								#np.array([4.0, 9.2, 0.,	# Position x, y, z
+								#1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
+								#0., 0., 0.,			# Linear Velocities
+								#0., 0., 0.]),		# Angular Velocities
+								#np.array([3.5, 8.3, 0.,	# Position x, y, z
+								#1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
+								#0., 0., 0.,			# Linear Velocities
+								#0., 0., 0.]),		# Angular Velocities
+								#np.array([3.5, 8.0, 0.,	# Position x, y, z
+								#1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
+								#0., 0., 0.,			# Linear Velocities
+								#0., 0., 0.]),		# Angular Velocities
+								#np.array([3.5, 8.6, 0.,	# Position x, y, z
+								#1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
+								#0., 0., 0.,			# Linear Velocities
+								#0., 0., 0.]),		# Angular Velocities
+								#np.array([3.5, 7.4, 0.,	# Position x, y, z
+								#1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
+								#0., 0., 0.,			# Linear Velocities
+								#0., 0., 0.]),		# Angular Velocities
+								#np.array([3.5, 9.2, 0.,	# Position x, y, z
+								#1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
+								#0., 0., 0.,			# Linear Velocities
+								#0., 0., 0.]),		# Angular Velocities
+								#np.array([4.5, 8.3, 0.,	# Position x, y, z
+								#1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
+								#0., 0., 0.,			# Linear Velocities
+								#0., 0., 0.]),		# Angular Velocities
+								#np.array([4.5, 8.0, 0.,	# Position x, y, z
+								#1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
+								#0., 0., 0.,			# Linear Velocities
+								#0., 0., 0.]),		# Angular Velocities
+								#np.array([4.5, 8.6, 0.,	# Position x, y, z
+								#1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
+								#0., 0., 0.,			# Linear Velocities
+								#0., 0., 0.]),		# Angular Velocities
+								#np.array([4.5, 7.4, 0.,	# Position x, y, z
+								#1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
+								#0., 0., 0.,			# Linear Velocities
+								#0., 0., 0.]),		# Angular Velocities
+								#np.array([4.5, 9.2, 0.,	# Position x, y, z
+								#1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
+								#0., 0., 0.,			# Linear Velocities
+								#0., 0., 0.]),		# Angular Velocities
+								]
+'''
+# TEST 1_MPC_move_below
+map_state = [np.array([3.5, 8.8, 0.,	# Position x, y, z
 								1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
 								0., 0., 0.,			# Linear Velocities
 								0., 0., 0.]),		# Angular Velocities
@@ -101,31 +122,38 @@ map_state = [np.array([4.0, 8.3, 0.,	# Position x, y, z
 								1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
 								0., 0., 0.,			# Linear Velocities
 								0., 0., 0.]),		# Angular Velocities
-								np.array([3.5, 9.2, 0.,	# Position x, y, z
+								np.array([5.5, 7.2, 0.,	# Position x, y, z
 								1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
 								0., 0., 0.,			# Linear Velocities
 								0., 0., 0.]),		# Angular Velocities
-								np.array([4.5, 8.3, 0.,	# Position x, y, z
+						]
+'''
+
+'''
+map_state = [np.array([6.0, 6.0, 0.,	# Position x, y, z
+								0.707, 0.707, 0., 0.,	# Quaternion w, z, (x, y?)
+								0., 0., 0.,			# Linear Velocities
+								0., 0., 0.]),		# Angular Velocities
+								#np.array([3.5, 7.4, 0.,	# Position x, y, z
+								#1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
+								#0., 0., 0.,			# Linear Velocities
+								#0., 0., 0.]),		# Angular Velocities
+								#np.array([5.5, 7.2, 0.,	# Position x, y, z
+								#1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
+								#0., 0., 0.,			# Linear Velocities
+								#0., 0., 0.]),		# Angular Velocities
+						]
+'''
+
+map_state = [np.array([4.0, 8.6, 0.,	# Position x, y, z
 								1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
 								0., 0., 0.,			# Linear Velocities
 								0., 0., 0.]),		# Angular Velocities
-								np.array([4.5, 8.0, 0.,	# Position x, y, z
+								np.array([4.0, 9.0, 0.,	# Position x, y, z
 								1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
 								0., 0., 0.,			# Linear Velocities
 								0., 0., 0.]),		# Angular Velocities
-								np.array([4.5, 8.6, 0.,	# Position x, y, z
-								1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
-								0., 0., 0.,			# Linear Velocities
-								0., 0., 0.]),		# Angular Velocities
-								np.array([4.5, 7.4, 0.,	# Position x, y, z
-								1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
-								0., 0., 0.,			# Linear Velocities
-								0., 0., 0.]),		# Angular Velocities
-								np.array([4.5, 9.2, 0.,	# Position x, y, z
-								1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
-								0., 0., 0.,			# Linear Velocities
-								0., 0., 0.]),		# Angular Velocities
-								]
+						]
 common = {
     'experiment_name': 'my_experiment' + '_' + \
             datetime.strftime(datetime.now(), '%m-%d-%y_%H-%M'),
@@ -147,11 +175,8 @@ for i in xrange(common['conditions']):
 		state = np.zeros(map_state[i].size)
 		state[:idx_pos] = map_state[i][:idx_pos] - odom_pose
 		
-		# Change orientation
-		state[idx_pos] = map_state[i][idx_pos+2] # w
-		state[idx_pos+1] = map_state[i][idx_pos+3] # z
-		state[idx_pos+2] = map_state[i][idx_pos+1] # x
-		state[idx_pos+3] = map_state[i][idx_pos] # y
+		# odom state is independent to map state
+		state[idx_pos:idx_pos+idx_ori] = [0., 0., 0., 1.]
 		
 		x0s.append(state)
 		reset_conditions.append(map_state[i])
@@ -168,7 +193,7 @@ agent = {
     'sensor_dims': SENSOR_DIMS,
     'state_include': [MOBILE_POSITION, MOBILE_ORIENTATION, \
 				MOBILE_VELOCITIES_LINEAR, MOBILE_VELOCITIES_ANGULAR],
-    'obs_include': [MOBILE_POSITION, MOBILE_ORIENTATION, \
+    'obs_include': [MOBILE_RANGE_SENSOR, MOBILE_ORIENTATION, \
 				MOBILE_VELOCITIES_LINEAR, MOBILE_VELOCITIES_ANGULAR],
 }
 
@@ -219,8 +244,8 @@ state_cost = {
             'target_state': np.array([0., 0., 0., 1.]),
         },
         MOBILE_VELOCITIES_LINEAR: {
-            'wp': np.ones(SENSOR_DIMS[MOBILE_VELOCITIES_LINEAR])*100.,
-            'target_state': np.array([1.0, 0., 0.]),
+            'wp': np.ones(SENSOR_DIMS[MOBILE_VELOCITIES_LINEAR])*10000.,
+            'target_state': np.array([1., 0., 0.]),
         },
         MOBILE_VELOCITIES_ANGULAR: {
             'wp': np.ones(SENSOR_DIMS[MOBILE_VELOCITIES_ANGULAR])*25.,
@@ -243,9 +268,9 @@ obstacle_cost = {
 algorithm['cost'] = {
     'type': CostSum,
     'costs': [action_cost, state_cost, obstacle_cost],
-    'weights': [1.0, 1.0, 1000.0],
+    #'weights': [1.0, 1.0, 1000.0],
+    'weights': [0.1, 0.1, 100.0],
 }
-
 
 algorithm['dynamics'] = {
     'type': DynamicsLRPrior,

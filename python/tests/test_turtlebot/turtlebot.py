@@ -17,10 +17,11 @@ from gps.gui.gps_training_gui import GPSTrainingGUI
 from gps.utility.data_logger import DataLogger
 from gps.sample.sample_list import SampleList
 from gps.proto.gps_pb2 import END_EFFECTOR_POINTS, END_EFFECTOR_POINT_VELOCITIES,\
-MOBILE_POSITION, POSITION_NEAREST_OBSTACLE, ACTION
+MOBILE_POSITION, MOBILE_ORIENTATION, POSITION_NEAREST_OBSTACLE, ACTION
 from gps.sample.sample import Sample
 from gps.algorithm.cost.cost_obstacles import CostObstacle
 from gps.algorithm.cost.cost_state import CostState
+from gps.algorithm.cost.cost_sum import CostSum
 from gps.utility.data_logger import DataLogger
 from gps.agent.agent_utils import generate_noise, setup
 from gps.agent.config import AGENT
@@ -86,7 +87,17 @@ def runTest(itr_load):
 		'''
 		# Sample using offline trajectory distribution.
 		#for i in range(config['num_samples']):
-		sample = agent.sample(pol, cond, noisy = True)
+		sample = agent.sample(pol, cond, noisy = False)
+		cost_sum = CostSum(config['algorithm']['cost'])
+		cost_obs = cost_obstacle.eval(sample)[0]
+		cost_sta = cost_state.eval(sample)[0]
+		total_cost = np.sum(cost_sum.eval(sample)[0])
+		weights = config['algorithm']['cost']['weights']
+		print "Total cost: ", total_cost,
+		print "Cost state: ", np.sum(weights[1]*cost_sta),
+		print "Cost obstacle: ", np.sum(weights[2]*cost_obs)
+		
+		'''
 		l, lx, lu, lxx, luu, lux = cost_obstacle.eval(sample)
 		sl, slx, slu, slxx, sluu, slux = cost_state.eval(sample)
 		
@@ -97,6 +108,7 @@ def runTest(itr_load):
 			print state, obs, dist, 0.5*dist**2, l[t], sl[t]
 			#print sl[t]
 			#print lx[t]
+		'''
 	
 def main():
 	print 'running ros'
