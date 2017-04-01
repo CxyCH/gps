@@ -86,16 +86,16 @@ def runTest(itr_load):
 			raw_input("Get data")
 		'''
 		# Sample using offline trajectory distribution.
-		#for i in range(config['num_samples']):
-		sample = agent.sample(pol, cond, noisy = False)
-		cost_sum = CostSum(config['algorithm']['cost'])
-		cost_obs = cost_obstacle.eval(sample)[0]
-		cost_sta = cost_state.eval(sample)[0]
-		total_cost = np.sum(cost_sum.eval(sample)[0])
-		weights = config['algorithm']['cost']['weights']
-		print "Total cost: ", total_cost,
-		print "Cost state: ", np.sum(weights[1]*cost_sta),
-		print "Cost obstacle: ", np.sum(weights[2]*cost_obs)
+		for i in range(config['num_samples']):
+			sample = agent.sample(pol, cond, noisy = False)
+			cost_sum = CostSum(config['algorithm']['cost'])
+			cost_obs = cost_obstacle.eval(sample)[0]
+			cost_sta = cost_state.eval(sample)[0]
+			total_cost = np.sum(cost_sum.eval(sample)[0])
+			weights = config['algorithm']['cost']['weights']
+			print "Total cost: ", total_cost,
+			print "Cost state: ", np.sum(weights[1]*cost_sta),
+			print "Cost obstacle: ", np.sum(weights[2]*cost_obs)
 		
 		'''
 		l, lx, lu, lxx, luu, lux = cost_obstacle.eval(sample)
@@ -113,8 +113,8 @@ def runTest(itr_load):
 def main():
 	print 'running ros'
 	#exp_name = "turtlebot_example"
-	exp_name = "turtlebot_badmm_example"
-	#exp_name = "turtlebot_hallway_example"
+	#exp_name = "turtlebot_badmm_example"
+	exp_name = "turtlebot_hallway_badmm_example"
 	hyperparams = loadExperiment(exp_name)
 	global config
 	config = hyperparams.config

@@ -21,12 +21,12 @@
   <arg name="map_file"       default=" $(find turtlebot_mpepc)/maps/willow-full.yaml"/>
   <arg name="world_file"     default=" $(find turtlebot_mpepc)/worlds/willow-full.world"/>
 -->
+<!--
 	<arg name="map_file"       default=" $(find gps_agent_pkg)/maps/one_obstacle.yaml"/>
   <arg name="world_file"     default=" $(find gps_agent_pkg)/worlds/one_obstacle.world"/>
-<!--
+-->
 	<arg name="map_file"       default=" $(find gps_agent_pkg)/maps/hallway.yaml"/>
   <arg name="world_file"     default=" $(find gps_agent_pkg)/worlds/hallway.world"/>
--->
 <!--
   <arg name="map_file"       default=" $(find gps_agent_pkg)/maps/hallway_bend.yaml"/>
   <arg name="world_file"     default=" $(find gps_agent_pkg)/worlds/hallway_bend.world"/>
