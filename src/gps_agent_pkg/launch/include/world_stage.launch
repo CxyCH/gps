@@ -10,27 +10,18 @@
   - rviz view
  -->
 <launch>
+	<arg name="world"  default="hallway"/>  
+  <arg name="world_path" default="$(find gps_agent_pkg)/worlds/"/>
+  <arg name="map_path" default="$(find gps_agent_pkg)/maps/"/>
+	
   <arg name="base"       default="$(optenv TURTLEBOT_BASE kobuki)"/>  <!-- create, rhoomba -->
   <arg name="stacks"     default="$(optenv TURTLEBOT_STACKS hexagons)"/>  <!-- circles, hexagons -->
   <arg name="3d_sensor"  default="$(optenv TURTLEBOT_3D_SENSOR asus_xtion_pro)"/>  <!-- kinect, asus_xtion_pro -->
 
   <!-- Name of the map to use (without path nor extension) and initial position -->
-  <!--<arg name="map_file"       default=" $(env TURTLEBOT_STAGE_MAP_FILE)"/>--> <!-- robopark_plan -->
-  <!--<arg name="world_file"     default=" $(env TURTLEBOT_STAGE_WORLD_FILE)"/>-->
-<!--
-  <arg name="map_file"       default=" $(find turtlebot_mpepc)/maps/willow-full.yaml"/>
-  <arg name="world_file"     default=" $(find turtlebot_mpepc)/worlds/willow-full.world"/>
--->
-<!--
-	<arg name="map_file"       default=" $(find gps_agent_pkg)/maps/one_obstacle.yaml"/>
-  <arg name="world_file"     default=" $(find gps_agent_pkg)/worlds/one_obstacle.world"/>
--->
-	<arg name="map_file"       default=" $(find gps_agent_pkg)/maps/hallway.yaml"/>
-  <arg name="world_file"     default=" $(find gps_agent_pkg)/worlds/hallway.world"/>
-<!--
-  <arg name="map_file"       default=" $(find gps_agent_pkg)/maps/hallway_bend.yaml"/>
-  <arg name="world_file"     default=" $(find gps_agent_pkg)/worlds/hallway_bend.world"/>
--->
+	<arg name="map_file"       default="$(arg map_path)$(arg world).yaml"/>
+  <arg name="world_file"     default="$(arg world_path)$(arg world).world"/>
+
   <arg name="initial_pose_x" default="2.0"/>
   <arg name="initial_pose_y" default="2.0"/>
   <arg name="initial_pose_a" default="0.0"/>
@@ -100,5 +91,4 @@
   
   <!--  **************** Visualisation ****************  -->
   <node pkg="rviz" type="rviz" respawn="false" name="rviz" args="-d $(find gps_agent_pkg)/param/turtlebot.rviz" />
-  <!--<node pkg="rviz" type="rviz" respawn="false" name="rviz" args="-d $(find srl_global_planner)/rviz/planning.rviz" />-->
 </launch>

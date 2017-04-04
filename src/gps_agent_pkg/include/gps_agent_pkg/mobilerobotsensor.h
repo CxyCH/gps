@@ -99,7 +99,6 @@ private:
 	double distance(double pose_x, double pose_y, double obx, double oby);
 	geometry_msgs::Pose getCurrentRobotPose();
 	void updateObstacleTree(costmap_2d::Costmap2D *costmap);
-	vector<MinDistResult> find_points_within_threshold(Point newPoint, double threshold);
 	MinDistResult find_nearest_neighbor(Point queryPoint);
 	double min_distance_to_obstacle(geometry_msgs::Pose local_current_pose, double *heading, Point *obs_pose);
 

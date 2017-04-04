@@ -54,9 +54,9 @@ set(DDP_FILES src/robotplugin.cpp
               src/trialcontroller.cpp
               src/encodersensor.cpp
               src/encoderfilter.cpp
-							src/rostopicsensor.cpp
+			  src/rostopicsensor.cpp
               src/util.cpp
-              src/turtlebot.cpp
+              src/mobilerobot.cpp
               src/mobilerobotsensor.cpp
               src/navcontroller.cpp
 )
@@ -103,10 +103,10 @@ rosbuild_add_library(gps_agent_lib ${DDP_FILES})
 #rosbuild_add_executable(torso src/torso.cpp)
 
 # ADDED BY THOBOTICS
-rosbuild_add_executable(turtlebot_node src/turtlebot_node.cpp)
-target_link_libraries(turtlebot_node gps_agent_lib)
-#target_link_libraries(turtlebot_node ${catkin_LIBRARIES})
-#add_dependencies(turtlebot_test beginner_tutorials_generate_messages_cpp)
+rosbuild_add_executable(mobilerobot_node src/mobilerobot_node.cpp)
+target_link_libraries(mobilerobot_node gps_agent_lib)
+#target_link_libraries(mobilerobot_node ${catkin_LIBRARIES})
+#add_dependencies(mobilerobot_test beginner_tutorials_generate_messages_cpp)
 
 # Include Caffe in controller
 if (USE_CAFFE)

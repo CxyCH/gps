@@ -1,10 +1,10 @@
 /*
- * turtlebot.cpp
+ * mobilerobot.cpp
  *
  *  Created on: Mar 5, 2017
  *      Author: thobotics
  */
-#include "gps_agent_pkg/turtlebot.h"
+#include "gps_agent_pkg/mobilerobot.h"
 #include "gps_agent_pkg/sensor.h"
 #include "gps_agent_pkg/controller.h"
 #include "gps_agent_pkg/positioncontroller.h"
@@ -24,7 +24,7 @@
 using namespace gps_control;
 
 // Plugin constructor.
-Turtlebot::Turtlebot()
+MobileRobot::MobileRobot()
 {
     // Nothing to do here, since all variables are initialized in initialize(...)
 	// Some basic variable initialization.
@@ -33,12 +33,12 @@ Turtlebot::Turtlebot()
 }
 
 // Destructor.
-Turtlebot::~Turtlebot()
+MobileRobot::~MobileRobot()
 {
     // Nothing to do here, since all instance variables are destructed automatically.
 }
 
-void Turtlebot::init(ros::NodeHandle& n)
+void MobileRobot::init(ros::NodeHandle& n)
 {
 	// TODO: Set topic name by parameters
 	cmd_pub_ = n.advertise<geometry_msgs::Twist>("/cmd_vel_mux/input/navi", 1);
@@ -54,7 +54,7 @@ void Turtlebot::init(ros::NodeHandle& n)
 }
 
 // This is called by the controller manager before starting the controller.
-void Turtlebot::starting()
+void MobileRobot::starting()
 {
     // Get current time.
     last_update_time_ = ros::Time::now();
@@ -76,12 +76,12 @@ void Turtlebot::starting()
 }
 
 // This is called by the controller manager before stopping the controller.
-void Turtlebot::stopping()
+void MobileRobot::stopping()
 {
     // Nothing to do here.
 }
 
-void Turtlebot::update()
+void MobileRobot::update()
 {
 	// Get current time.
 	last_update_time_ = ros::Time::now();
@@ -100,31 +100,26 @@ void Turtlebot::update()
     // Setup action and send to robot
     geometry_msgs::Twist cmd_vel;
     cmd_vel.linear.x = active_arm_torques_[0];
-    /*cmd_vel.linear.y = active_arm_torques_[1];
-    cmd_vel.linear.z = active_arm_torques_[2];
-    cmd_vel.angular.x = active_arm_torques_[3];
-    cmd_vel.angular.y = active_arm_torques_[4];
-    cmd_vel.angular.z = active_arm_torques_[5];*/
     cmd_vel.linear.y = active_arm_torques_[1];
     cmd_vel.angular.z = active_arm_torques_[2];
     cmd_pub_.publish(cmd_vel);
 }
 
 // Initialize ROS communication infrastructure.
-void Turtlebot::initialize_ros(ros::NodeHandle& n)
+void MobileRobot::initialize_ros(ros::NodeHandle& n)
 {
-	ROS_INFO_STREAM("Initializing Turtlebot ROS subs/pubs");
+	ROS_INFO_STREAM("Initializing mobile robot ROS subs/pubs");
 	// Create subscribers.
-    position_subscriber_ = n.subscribe("/gps_controller_navigation_command", 1, &Turtlebot::nav_subscriber_callback, this);
-	trial_subscriber_ = n.subscribe("/gps_controller_trial_command", 1, &Turtlebot::trial_subscriber_callback, this);
-	data_request_subscriber_ = n.subscribe("/gps_controller_data_request", 1, &Turtlebot::data_request_subscriber_callback, this);
+    position_subscriber_ = n.subscribe("/gps_controller_navigation_command", 1, &MobileRobot::nav_subscriber_callback, this);
+	trial_subscriber_ = n.subscribe("/gps_controller_trial_command", 1, &MobileRobot::trial_subscriber_callback, this);
+	data_request_subscriber_ = n.subscribe("/gps_controller_data_request", 1, &MobileRobot::data_request_subscriber_callback, this);
 
 	// Create publishers.
 	report_publisher_.reset(new realtime_tools::RealtimePublisher<gps_agent_pkg::SampleResult>(n, "/gps_controller_report", 1));
 }
 
 // Initialize all sensors.
-void Turtlebot::initialize_sensors(ros::NodeHandle& n)
+void MobileRobot::initialize_sensors(ros::NodeHandle& n)
 {
 	ROS_INFO_STREAM("Initializing Tutlebot sensor");
     // Clear out the old sensors.
@@ -148,13 +143,13 @@ void Turtlebot::initialize_sensors(ros::NodeHandle& n)
 }
 
 // Initialize position controllers.
-void Turtlebot::initialize_position_controllers(ros::NodeHandle& n)
+void MobileRobot::initialize_position_controllers(ros::NodeHandle& n)
 {
 	nav_controller_.reset(new NavController(n));
 }
 
 // Update the controllers at each time step.
-void Turtlebot::update_controllers(ros::Time current_time, bool is_controller_step)
+void MobileRobot::update_controllers(ros::Time current_time, bool is_controller_step)
 {
 	bool trial_init = trial_controller_ != NULL && trial_controller_->is_configured() && controller_initialized_;
 	if(!is_controller_step && trial_init){
@@ -199,7 +194,7 @@ void Turtlebot::update_controllers(ros::Time current_time, bool is_controller_st
 }
 
 // Position command callback.
-void Turtlebot::nav_subscriber_callback(const gps_agent_pkg::NavigationCommand::ConstPtr& msg)
+void MobileRobot::nav_subscriber_callback(const gps_agent_pkg::NavigationCommand::ConstPtr& msg)
 {
 	ROS_INFO_STREAM("received navigation command");
 	OptionsMap params;
@@ -223,24 +218,24 @@ void Turtlebot::nav_subscriber_callback(const gps_agent_pkg::NavigationCommand::
 }
 
 // Trial command callback.
-void Turtlebot::trial_subscriber_callback(const gps_agent_pkg::TrialCommand::ConstPtr& msg)
+void MobileRobot::trial_subscriber_callback(const gps_agent_pkg::TrialCommand::ConstPtr& msg)
 {
 	RobotPlugin::trial_subscriber_callback(msg);
 }
 
 // Trial command callback.
-void Turtlebot::data_request_subscriber_callback(const gps_agent_pkg::DataRequest::ConstPtr& msg)
+void MobileRobot::data_request_subscriber_callback(const gps_agent_pkg::DataRequest::ConstPtr& msg)
 {
 	RobotPlugin::data_request_subscriber_callback(msg);
 }
 
 // Get current time.
-ros::Time Turtlebot::get_current_time() const
+ros::Time MobileRobot::get_current_time() const
 {
     return last_update_time_;
 }
 
 // Get current encoder readings (robot-dependent).
-void Turtlebot::get_joint_encoder_readings(Eigen::VectorXd &angles, gps::ActuatorType arm) const
+void MobileRobot::get_joint_encoder_readings(Eigen::VectorXd &angles, gps::ActuatorType arm) const
 {
 }

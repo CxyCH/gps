@@ -1,12 +1,12 @@
 /*
- * turtlebot.h
+ * mobilerobot.h
  *
  *  Created on: Mar 5, 2017
  *      Author: thobotics
  */
 
-#ifndef GPS_AGENT_PKG_INCLUDE_GPS_AGENT_PKG_TURTLEBOT_H_
-#define GPS_AGENT_PKG_INCLUDE_GPS_AGENT_PKG_TURTLEBOT_H_
+#ifndef GPS_AGENT_PKG_INCLUDE_GPS_AGENT_PKG_MOBILEROBOT_H_
+#define GPS_AGENT_PKG_INCLUDE_GPS_AGENT_PKG_MOBILEROBOT_H_
 
 
 #include <vector>
@@ -34,44 +34,13 @@
 
 namespace gps_control
 {
-/*
-// Controllers.
-class TrialController;
-// Sensors.
-class Sensor;
-// Sample.
-class Sample;
-// Custom ROS messages.
-class SampleResult;
-class TrialCommand;*/
 
-class Turtlebot: public RobotPlugin {
-	/*protected:
-	ros::Time last_update_time_;
-    // Current trial controller (if any).
-    boost::scoped_ptr<TrialController> trial_controller_;
-    // Sensor data for the current time step.
-    boost::scoped_ptr<Sample> current_time_step_sample_;
-    // Sensors.
-    std::vector<boost::shared_ptr<Sensor> > sensors_;
-    // Subscriber trial commands.
-    ros::Subscriber trial_subscriber_;
-    // Subscriber for current state report request.
-    ros::Subscriber data_request_subscriber_;
-    // Publishers.
-    // Publish result of a trial, completion of position command, or just a report.
-    ros_publisher_ptr(gps_agent_pkg::SampleResult) report_publisher_;
-    // Is a trial arm data request pending?
-    bool trial_data_request_waiting_;
-    // Are the sensors initialized?
-    bool sensors_initialized_;
-    // Is everything initialized for the trial controller?
-    bool controller_initialized_;*/
+class MobileRobot: public RobotPlugin {
 public:
     // Constructor (this should do nothing).
-	Turtlebot();
+	MobileRobot();
     // Destructor.
-    virtual ~Turtlebot();
+    virtual ~MobileRobot();
 
     // Init all things needed
     void init(ros::NodeHandle& n);
@@ -99,17 +68,8 @@ private:
 	void initialize_ros(ros::NodeHandle& n);
     // Initialize all of the sensors (this also includes FK computation objects).
 	void initialize_sensors(ros::NodeHandle& n);
-	// TODO: Comment
-	//void initialize_sample(boost::scoped_ptr<Sample>& sample, gps::ActuatorType actuator_type);
 	// Initialize all of the position controllers.
 	void initialize_position_controllers(ros::NodeHandle& n);
-
-	//Helper method to configure all sensors
-	//void configure_sensors(OptionsMap &opts);
-
-	// Report publishers
-	// Publish a sample with data from up to T timesteps
-	//void publish_sample_report(boost::scoped_ptr<Sample>& sample, int T=1);
 
 	// Subscriber callbacks.
     // Position command callback.
@@ -127,11 +87,9 @@ private:
 	// Accessors.
 	// Get current time.
 	virtual ros::Time get_current_time() const;
-	// Get sensor
-	//Sensor *get_sensor(SensorType sensor, gps::ActuatorType actuator_type);
 	// This should be empty
 	void get_joint_encoder_readings(Eigen::VectorXd &angles, gps::ActuatorType arm) const;
 };
 }
 
-#endif /* GPS_AGENT_PKG_INCLUDE_GPS_AGENT_PKG_TURTLEBOT_H_ */
+#endif /* GPS_AGENT_PKG_INCLUDE_GPS_AGENT_PKG_MOBILEROBOT_H_ */

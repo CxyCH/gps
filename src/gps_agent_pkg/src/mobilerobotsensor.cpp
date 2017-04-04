@@ -6,7 +6,8 @@
  */
 
 #include "gps_agent_pkg/mobilerobotsensor.h"
-#include "gps_agent_pkg/turtlebot.h"
+
+#include "../include/gps_agent_pkg/mobilerobot.h"
 
 using namespace gps_control;
 
@@ -57,10 +58,10 @@ MobileRobotSensor::MobileRobotSensor(ros::NodeHandle& n, RobotPlugin *plugin): S
 	}
 
 	// Initialize subscriber
-	// TODO: Get topic name by parameter
-	topic_name_ = "/odom";
+	n.param<std::string>("/odom_topic", topic_name_, "odom");
+	n.param<std::string>("/scan_topic", range_topic_name_, "scan");
+
 	subscriber_ = n.subscribe(topic_name_, 1, &MobileRobotSensor::update_data_vector, this);
-	range_topic_name_ = "/scan";
 	range_subscriber_ = n.subscribe(range_topic_name_, 1, &MobileRobotSensor::update_range_data, this);
 
 	// Set time.
@@ -269,43 +270,6 @@ void MobileRobotSensor::updateObstacleTree(costmap_2d::Costmap2D *costmap)
 	}
 }
 
-vector<MinDistResult> MobileRobotSensor::find_points_within_threshold(Point newPoint, double threshold)
-{
-    vector<MinDistResult> results;
-
-    flann::Matrix<float> query(new float[2], 1, 2);
-    query[0][0] = newPoint.a;
-    query[0][1] = newPoint.b;
-
-    std::vector< std::vector<int> > indices;
-    std::vector< std::vector<float> > dists;
-
-    flann::SearchParams params;
-    params.checks = 128;
-    params.max_neighbors = -1;
-    params.sorted = true;
-    // ROS_INFO("Do search");
-    {
-      boost::mutex::scoped_lock lock(cost_map_mutex_);
-      obs_tree->radiusSearch(query, indices, dists, threshold, params);
-
-      // ROS_INFO("Finished search");
-      for (int i = 0; i < indices[0].size(); i++)
-      {
-        MinDistResult result;
-        result.p = Point((*data)[indices[0][i]][0], (*data)[indices[0][i]][1]);
-        result.dist = static_cast<double>(dists[0][i]);
-        results.push_back(result);
-      }
-    }
-
-    delete[] query.ptr();
-    indices.clear();
-    dists.clear();
-
-    return results;
-}
-
 MinDistResult MobileRobotSensor::find_nearest_neighbor(Point queryPoint)
 {
     MinDistResult results;
@@ -352,39 +316,6 @@ double MobileRobotSensor::min_distance_to_obstacle(geometry_msgs::Pose local_cur
 
 	minDist = distance(local_current_pose.position.x, local_current_pose.position.y, nn_graph_point.p.a, nn_graph_point.p.b);
 
-	/*double SOME_THRESH = 1.5;
-
-	if(nn_graph_point.dist < SOME_THRESH)
-	{
-	  int min_i = 0;
-	  vector<MinDistResult> distResult;
-	  distResult = find_points_within_threshold(global, 1.1*SOME_THRESH);
-
-	  //ROS_INFO("Loop through %d points from radius search", distResult.size());
-	  for (unsigned int i = 0 ; i < distResult.size() && minDist > 0; i++)
-	  {
-		double dist = distance(local_current_pose.position.x, local_current_pose.position.y, cost_map.cells[i].x, cost_map.cells[i].y);
-		if (dist < minDist)
-		{
-		  minDist = dist;
-		  min_i = i;
-		}
-	  }
-
-	  obs_pose->a = cost_map.cells[min_i].x;
-	  obs_pose->b = cost_map.cells[min_i].y;
-	  // ROS_INFO("Calculate heading");
-	  head = tf::getYaw(local_current_pose.orientation) - atan2(cost_map.cells[min_i].y - local_current_pose.position.y, cost_map.cells[min_i].x - local_current_pose.position.x);
-	  head = mod(head + PI, TWO_PI) - PI;
-	  //ROS_INFO("Got nearest radius neighbor, poly dist: %f", minDist);
-	}
-	else
-	{
-	  minDist = distance(local_current_pose.position.x, local_current_pose.position.y, nn_graph_point.p.a, nn_graph_point.p.b);
-	  obs_pose->a = nn_graph_point.p.a;
-	  obs_pose->b = nn_graph_point.p.b;
-	  //ROS_INFO("Got nearest neighbor, poly dist: %f", minDist);
-	}*/
 	obs_pose->a = nn_graph_point.p.a;
 	obs_pose->b = nn_graph_point.p.b;
 	*heading = head;
