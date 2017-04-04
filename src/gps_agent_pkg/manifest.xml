@@ -19,7 +19,8 @@
   <depend package="orocos_kdl"/>
   <depend package="geometry_msgs"/>
   <depend package="tf"/>
-  <depend package="pr2_controller_manager"/>
+  <depend package="costmap_2d"/>
+  <depend package="nav_msgs"/>
 
   <rosdep name="eigen" />
 

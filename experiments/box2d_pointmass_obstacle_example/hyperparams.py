@@ -7,7 +7,7 @@ import numpy as np
 
 from gps import __file__ as gps_filepath
 from gps.agent.box2d.agent_box2d import AgentBox2D
-from gps.agent.box2d.point_mass_world import PointMassWorld
+from gps.agent.box2d.point_mass_world_obstacle import PointMassWorldObstacle
 from gps.algorithm.algorithm_traj_opt import AlgorithmTrajOpt
 from gps.algorithm.cost.cost_obstacles import CostObstacle
 from gps.algorithm.cost.cost_state import CostState
@@ -27,28 +27,38 @@ SENSOR_DIMS = {
 }
 
 BASE_DIR = '/'.join(str.split(gps_filepath, '/')[:-2])
-EXP_DIR = BASE_DIR + '/../experiments/box2d_pointmass_example/'
+EXP_DIR = BASE_DIR + '/../experiments/box2d_pointmass_obstacle_example/'
 
 common = {
-    'experiment_name': 'box2d_pointmass_example' + '_' + \
+    'experiment_name': 'box2d_pointmass_obstacle_example' + '_' + \
             datetime.strftime(datetime.now(), '%m-%d-%y_%H-%M'),
     'experiment_dir': EXP_DIR,
     'data_files_dir': EXP_DIR + 'data_files/',
     'target_filename': EXP_DIR + 'target.npz',
     'log_filename': EXP_DIR + 'log.txt',
     'conditions': 1,
-    'use_mpc': True,
+    'use_mpc': False,
 }
 
 if not os.path.exists(common['data_files_dir']):
     os.makedirs(common['data_files_dir'])
 
+world_info = {
+		'obstacles': [np.array([-5, 13, 4, 1]),
+           np.array([10, 13, 4, 1]),
+           np.array([-9, 20, 4, 1]),
+           np.array([15, 20, 4, 1]),
+           np.array([3, 20, 1.5, 1]),
+          ],
+}
+
 agent = {
     'type': AgentBox2D,
-    'target_state' : np.array([5, 20, 0]),
-    "world" : PointMassWorld,
+    'target_state' : np.array([3, 35, 0]),
+    "world" : PointMassWorldObstacle,
+    'world_info': world_info,
     'render' : False,
-    'x0': [np.array([0, 5, 0, 0, 0, 0])],
+    'x0': [np.array([-3, 5, 0, 0, 0, 0])],
     'rk': 0,
     'dt': 0.05,
     'substeps': 1,
@@ -105,10 +115,21 @@ state_cost = {
     },
 }
 
+obstacle_cost = {
+    'type': CostObstacle,
+    'obstacle_type' : POSITION_NEAREST_OBSTACLE,
+    'data_types' : {
+        END_EFFECTOR_POINTS: {
+            'wp': np.ones(SENSOR_DIMS[END_EFFECTOR_POINTS]),
+            'd_safe': 1.0
+        },
+    },
+}
+
 algorithm['cost'] = {
     'type': CostSum,
-    'costs': [action_cost, state_cost],
-    'weights': [1.0, 1.0],
+    'costs': [action_cost, state_cost, obstacle_cost],
+    'weights': [1.0, 1.2, 10.0],
 }
 
 algorithm['dynamics'] = {
@@ -129,8 +150,8 @@ algorithm['traj_opt'] = {
 algorithm['policy_opt'] = {}
 
 config = {
-    'iterations': 10,
-    'num_samples': 5,
+    'iterations': 15,
+    'num_samples': 10,
     'common': common,
     'verbose_trials': 0,
     'agent': agent,

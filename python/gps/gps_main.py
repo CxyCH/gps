@@ -19,6 +19,7 @@ from gps.gui.gps_training_gui import GPSTrainingGUI
 from gps.utility.data_logger import DataLogger
 from gps.sample.sample_list import SampleList
 from gps.algorithm.traj_opt.mpc_traj_opt import MpcTrajOpt
+from gps.algorithm.algorithm_traj_opt import AlgorithmTrajOpt
 from gps.sample.sample import Sample
 from math import ceil
 import numpy as np
@@ -56,20 +57,15 @@ class GPSMain(object):
         self.algorithm = config['algorithm']['type'](config['algorithm'])
         
         self.use_mpc = False
-        if config['common']['use_mpc']:
+        if 'use_mpc' in config['common'] and config['common']['use_mpc']:
             self.use_mpc = True
             config['agent']['T'] = config['agent']['M'] 
             self.mpc_agent = config['agent']['type'](config['agent'])
             
             # Algorithm __init__ deleted it
-            config['algorithm']['agent'] = self.agent
+            config['algorithm']['agent'] = self.agent   
             
-            self.mpc = []
-            for m in range(self.algorithm.M):
-                self.mpc.append([])
-                
-                for i in range(config['num_samples']):
-                    self.mpc[m].append(MpcTrajOpt(config['algorithm'], m))            
+            self.algorithm.init_mpc(config['num_samples'], config['algorithm'])         
 
     def run(self, itr_load=None):
         """
@@ -224,16 +220,21 @@ class GPSMain(object):
             if i == 0:
                 # Note: At this time algorithm.prev = algorithm.cur,
                 #       and prev.traj_info already have x0mu, x0sigma.
-                self.off_prior, _ = self.algorithm.traj_opt.forward(pol, self.algorithm.prev[cond].traj_info)  
-    
+                self.off_prior, _ = self.algorithm.traj_opt.forward(pol, self.algorithm.prev[cond].traj_info)
+                
+            if type(self.algorithm) == AlgorithmTrajOpt:
+                pol_info = None
+            else:
+                pol_info = self.algorithm.cur[cond].pol_info
+                        
             for n in range(N):
                 # Note: M-1 because action[M] = [0,0].
                 t_traj = n*(M-1)
                 reset = True if(n == 0) else False
                 
-                mpc_pol = self.mpc[cond][i].update(
+                mpc_pol = self.algorithm.mpc[cond][i].update(
                     n, X_t, self.off_prior, pol, 
-                    self.algorithm.cur[cond].traj_info, t_traj
+                    self.algorithm.cur[cond].traj_info, t_traj, pol_info
                 )
                 new_sample = self.mpc_agent.sample(
                     mpc_pol, cond, 

@@ -1,8 +1,3 @@
-'''
-Created on Dec 28, 2016
-
-@author: taihoang
-'''
 import copy
 
 import numpy as np

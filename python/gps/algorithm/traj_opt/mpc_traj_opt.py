@@ -45,8 +45,11 @@ class MpcTrajOpt(object):
                 config['init_mpc'], cond
             )
             self.mpc_pol.append(init_mpc['type'](init_mpc))
+    
+    def convert_t_traj(self, t_traj):
+        return t_traj / (self.M - 1), t_traj % (self.M - 1) 
         
-    def update(self, n, X_t, prior, traj_distr, traj_info, cur_t):
+    def update(self, n, X_t, prior, traj_distr, traj_info, cur_t, pol_info=None):
         self.T = traj_distr.T
         dX = traj_distr.dX
         dU = traj_distr.dU
@@ -65,7 +68,7 @@ class MpcTrajOpt(object):
         self.T_mpc = X_ref.shape[0]    
             
         mu, sigma = self.forward(traj_distr, trajinfo, cur_t)
-        new_mpc = self.backward(self.mpc_pol[n], traj_distr, trajinfo, X_ref, mu, sigma, cur_t)
+        new_mpc = self.backward(self.mpc_pol[n], traj_distr, trajinfo, X_ref, mu, sigma, cur_t, pol_info)
         
         # Store mpc
         self.mpc_pol[n] = new_mpc
@@ -132,7 +135,7 @@ class MpcTrajOpt(object):
                 mu[t+1, idx_x] = Fm[t_traj, :, :].dot(mu[t, :]) + fv[t_traj, :]
         return mu, sigma
     
-    def backward(self, prev_mpc_traj_distr, traj_distr, traj_info, x0, mu, sigma, cur_t):
+    def backward(self, prev_mpc_traj_distr, traj_distr, traj_info, x0, mu, sigma, cur_t, pol_info):
         """
         Perform LQR backward pass. This computes a new linear Gaussian
         policy object.
@@ -154,7 +157,7 @@ class MpcTrajOpt(object):
         dU = prev_mpc_traj_distr.dU
         dX = prev_mpc_traj_distr.dX
         
-        mpc_traj_distr = prev_mpc_traj_distr.nans_like()
+        mpc_traj_distr = prev_mpc_traj_distr.nans_like(zeros=True)
         
         """
         # TODO: Check BADMM need this?
@@ -184,7 +187,7 @@ class MpcTrajOpt(object):
             Vxx = np.zeros((T, dX, dX))
             Vx = np.zeros((T, dX))
 
-            fCm, fcv = self.compute_costs(traj_distr, x0, mu, sigma, cur_t)
+            fCm, fcv = self.compute_costs(traj_distr, x0, mu, sigma, cur_t, pol_info)
 
             # Compute state-action-state function at each time step.
             for t in range(T - 1, -1, -1):
@@ -293,26 +296,56 @@ class MpcTrajOpt(object):
                 
         return fCm, fcv
     
-    def compute_costs(self, traj_distr, x0, mu, sigma, cur_t):
+    def compute_costs(self, traj_distr, x0, mu, sigma, cur_t, pol_info):
         T = self.T_mpc
+        dX = self.dX
+        dU = self.dU
         fCm, fcv = self._eval_cost(x0, mu, sigma)
         
-        K, ipc, k = traj_distr.K, traj_distr.inv_pol_covar, traj_distr.k
+        if pol_info is not None:
+            # Modify policy action via Lagrange multiplier.
+            fcv[:, dX:] -= pol_info.lambda_k[cur_t:cur_t+T]
+            fCm[:, dX:, :dX] -= pol_info.lambda_K[cur_t:cur_t+T]
+            fCm[:, :dX, dX:] -= np.transpose(pol_info.lambda_K[cur_t:cur_t+T], [0, 2, 1])
+            
+            # NOTE: Copy from policy_opt_caffe, and it work.
+            # If using raw wt policy cost diverge.
+            wts = pol_info.pol_wt * (float(T) / np.sum(pol_info.pol_wt))
+            # Allow weights to be at most twice the robust median.
+            mn = np.median(wts[(wts > 1e-2).nonzero()])
+            for t in range(T):
+                wts[t] = min(wts[t], 2 * mn)
+            # Robust median should be around one.
+            wts /= mn
+        
         # Add in the trajectory divergence term.
         for t in range(T - 1, -1, -1):
             t_traj = cur_t+t
-            fCm[t, :, :] += np.vstack([
+            if pol_info is not None:
+                # Policy KL-divergence terms.
+                inv_pol_covar = np.linalg.solve(
+                    pol_info.chol_pol_S[t_traj, :, :],
+                    np.linalg.solve(pol_info.chol_pol_S[t_traj, :, :].T, np.eye(dU))
+                )
+                K, k = pol_info.pol_K[t_traj, :, :], pol_info.pol_k[t_traj, :]
+                wt = wts[t_traj]
+            else:
+                K, k = traj_distr.K[t_traj, :, :], traj_distr.k[t_traj, :]
+                inv_pol_covar = traj_distr.inv_pol_covar[t_traj, :, :]
+                wt = 1.0 # No weight
+            
+            fCm[t, :, :] += wt * np.vstack([
                 np.hstack([
-                    K[t_traj, :, :].T.dot(ipc[t_traj, :, :]).dot(K[t_traj, :, :]),
-                    -K[t_traj, :, :].T.dot(ipc[t_traj, :, :])
+                    K.T.dot(inv_pol_covar).dot(K),
+                    -K.T.dot(inv_pol_covar)
                 ]),
                 np.hstack([
-                    -ipc[t_traj, :, :].dot(K[t_traj, :, :]), ipc[t_traj, :, :]
+                    -inv_pol_covar.dot(K), inv_pol_covar
                 ])
             ])
-            fcv[t, :] += np.hstack([
-                K[t_traj, :, :].T.dot(ipc[t_traj, :, :]).dot(k[t_traj, :]),
-                -ipc[t_traj, :, :].dot(k[t_traj, :])
+            fcv[t, :] += wt * np.hstack([
+                K.T.dot(inv_pol_covar).dot(k),
+                -inv_pol_covar.dot(k)
             ])
                             
         return fCm, fcv
