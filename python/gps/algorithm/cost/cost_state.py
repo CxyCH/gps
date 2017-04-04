@@ -37,20 +37,6 @@ class CostState(Cost):
             wp = config['wp']
             tgt = config['target_state']
             x = sample.get(data_type)
-            
-            if 'sup_key' in config:
-                key_list = np.arange(x.shape[1])
-                mask = np.ones(len(key_list), dtype=bool) # all elements included/True.
-                mask[config['sup_key']] = False           # Set unwanted elements to False
-                
-                new_tgt = np.zeros(x.shape)
-                for t in range(x.shape[0]):
-                    new_tgt[t,config['sup_key']] = tgt
-                    new_tgt[t,key_list[mask]] = x[t,key_list[mask]]
-                    
-                # Assign pointer
-                tgt = new_tgt
-
             _, dim_sensor = x.shape
 
             wpm = get_ramp_multiplier(
