@@ -1,3 +1,10 @@
+""" This file defines code for MPC GPS based trajectory optimization.
+ 
+References:
+ [1] Tianhao Zhang, Gregory Kahn, Sergey Levine, Pieter Abbeel. Learning Deep Control Policies 
+     for Autonomous Aerial Vehicles with MPC-Guided Policy Search. ICRA 2016.
+ """
+
 import os
 import os.path
 import sys
@@ -6,7 +13,6 @@ import numpy as np
 import scipy as sp
 from copy import deepcopy
 from math import ceil
-from scipy.stats import multivariate_normal
 from numpy.linalg import LinAlgError
 from gps.algorithm.config import ALG
 from gps.utility.general_utils import extract_condition
