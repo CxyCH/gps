@@ -144,12 +144,9 @@ state_cost = {
 obstacle_cost = {
     'type': CostObstacle,
     'obstacle_type' : POSITION_NEAREST_OBSTACLE,
-    'data_types' : {
-        MOBILE_POSITION: {
-            'wp': np.ones(SENSOR_DIMS[MOBILE_POSITION]),
-            'd_safe': 0.4 # Note that it 0.5*d^2
-        },
-    },
+    'position_type': MOBILE_POSITION,
+		'wp': np.ones(SENSOR_DIMS[MOBILE_POSITION]),
+		'd_safe': 0.4
 }
 
 algorithm['cost'] = {

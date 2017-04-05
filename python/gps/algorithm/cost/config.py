@@ -40,12 +40,10 @@ COST_OBSTACLE = {
     'l2': 1.0,
     'alpha': 1e-2,
     'wp_final_multiplier': 1.0,  # Weight multiplier on final time step.
-    'data_types': {
-        'JointAngle': {
-            'target_state': None,  # Target state - must be set.
-            'wp': None,  # State weights - must be set.
-        },
-    },
+    'wp': None,
+    'obstacle_type': None,
+    'position_type': None,
+    'd_safe': 0.4,
 }
 
 # CostBinaryRegion

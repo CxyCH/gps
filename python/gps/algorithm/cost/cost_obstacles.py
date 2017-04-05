@@ -31,10 +31,9 @@ class CostObstacle(Cost):
         lxx = np.zeros((T, dX, dX))
         lux = np.zeros((T, dU, dX))
         
-        data_type = self._hyperparams['data_types'].iterkeys().next()
-        config = self._hyperparams['data_types'][data_type]
+        data_type = self._hyperparams['position_type']
 
-        wp = config['wp']
+        wp = self._hyperparams['wp']
         obs = sample.get(self._hyperparams['obstacle_type'])
         x = sample.get(data_type)
 
@@ -48,7 +47,7 @@ class CostObstacle(Cost):
 
         # Evaluate penalty term.
         l, ls, lss = evalhinglel2loss(
-            wp, dist, config['d_safe'], self._hyperparams['l2'],
+            wp, dist, self._hyperparams['d_safe'], self._hyperparams['l2'],
         )
 
         # Add to current terms.
