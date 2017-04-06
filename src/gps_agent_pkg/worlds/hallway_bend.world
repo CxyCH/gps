@@ -27,6 +27,15 @@ define turtlebot position
   color "gray"
   
   kinect(pose [ -0.100 0.000 -0.110 0.000 ])
+  # add a camera to the robot
+  camera( 
+    pose [ 0 0 0.2 0 ]
+    range [ 0.2 8.0 ]
+    resolution [ 100 100 ]
+    fov [ 70 40 ]
+    pantilt [ 0 0 ]
+    alwayson 1
+  )
 )
 
 define floorplan model
