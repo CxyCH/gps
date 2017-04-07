@@ -52,15 +52,15 @@ map_state = [#np.array([5.5, 9.2, 0.,	# Position x, y, z
 								#1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
 								#0., 0., 0.,			# Linear Velocities
 								#0., 0., 0.]),		# Angular Velocities
-								np.array([5.5, 9.55, 0.,	# Position x, y, z
+								np.array([3.5, 9.55, 0.,	# Position x, y, z
 								1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
 								0., 0., 0.,			# Linear Velocities
 								0., 0., 0.]),		# Angular Velocities
-								np.array([5.5, 10.3, 0.,	# Position x, y, z
+								np.array([3.5, 10.3, 0.,	# Position x, y, z
 								1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
 								0., 0., 0.,			# Linear Velocities
 								0., 0., 0.]),		# Angular Velocities
-								np.array([5.5, 11.2, 0.,	# Position x, y, z
+								np.array([3.5, 11.2, 0.,	# Position x, y, z
 								1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
 								0., 0., 0.,			# Linear Velocities
 								0., 0., 0.]),		# Angular Velocities
@@ -189,7 +189,7 @@ obstacle_cost = {
 algorithm['cost'] = {
     'type': CostSum,
     'costs': [action_cost, state_cost, obstacle_cost],
-    'weights': [1.0, 1.0, 10.0],
+    'weights': [1.0, 1.0, 25.0],
 }
 
 
