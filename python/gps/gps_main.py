@@ -225,6 +225,7 @@ class GPSMain(object):
                 # Note: At this time algorithm.prev = algorithm.cur,
                 #       and prev.traj_info already have x0mu, x0sigma.
                 self.off_prior, _ = self.algorithm.traj_opt.forward(pol, self.algorithm.prev[cond].traj_info)
+                self.agent.publish_plan(self.off_prior)
                 
             if type(self.algorithm) == AlgorithmTrajOpt:
                 pol_info = None
@@ -236,10 +237,11 @@ class GPSMain(object):
                 t_traj = n*(M-1)
                 reset = True if(n == 0) else False
                 
-                mpc_pol = self.algorithm.mpc[cond][i].update(
+                mpc_pol, mpc_state = self.algorithm.mpc[cond][i].update(
                     n, X_t, self.off_prior, pol, 
                     self.algorithm.cur[cond].traj_info, t_traj, pol_info
                 )
+                self.agent.publish_plan(mpc_state, True)
                 new_sample = self.mpc_agent.sample(
                     mpc_pol, cond, 
                     reset=reset, noisy=True,

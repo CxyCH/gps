@@ -18,6 +18,7 @@ import time
 import threading
 
 import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 

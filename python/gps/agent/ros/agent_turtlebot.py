@@ -17,6 +17,7 @@ from gps.agent.ros.ros_utils import ServiceEmulator, msg_to_sample, \
 from gps.proto.gps_pb2 import TRIAL_ARM, AUXILIARY_ARM
 from gps_agent_pkg.msg import TrialCommand, SampleResult, NavigationCommand, \
         DataRequest
+from geometry_msgs.msg import PoseArray, Pose
 from __builtin__ import raw_input
 
 
@@ -40,15 +41,6 @@ class AgentTurtlebot(Agent):
         self._init_pubs_and_subs()
         self._seq_id = 0  # Used for setting seq in ROS commands.
 
-        conditions = self._hyperparams['conditions']
-
-        self.x0 = []
-        '''
-        TOOD: CHECK THIS
-        for field in ('x0', 'ee_points_tgt', 'reset_conditions'):
-            self._hyperparams[field] = setup(self._hyperparams[field],
-                                             conditions)
-        '''
         self.x0 = self._hyperparams['x0']
 
         r = rospy.Rate(1)
@@ -70,6 +62,8 @@ class AgentTurtlebot(Agent):
             self._hyperparams['data_request_topic'], DataRequest,
             self._hyperparams['sample_result_topic'], SampleResult
         )
+        self._offline_plan = rospy.Publisher("ofline_plan", PoseArray)
+        self._mpc_plan = rospy.Publisher("mpc_plan", PoseArray)
         
     def _get_next_seq_id(self):
         self._seq_id = (self._seq_id + 1) % (2 ** 32)
@@ -89,7 +83,6 @@ class AgentTurtlebot(Agent):
         sample = msg_to_sample(result_msg, self)
         return sample
 
-    # TODO: CHECK THIS
     def reset(self, condition):
         """
         Reset the agent for a particular experiment condition.
@@ -105,7 +98,6 @@ class AgentTurtlebot(Agent):
         self._reset_service.publish_and_wait(reset_command, timeout=timeout)
         time.sleep(2.0)  # useful for the real robot, so it stops completely
 
-    # TODO: CHECK THIS
     def sample(self, policy, condition, reset=True, verbose=True, save=True, noisy=True):
         """
         Reset and execute a policy and collect a sample.
@@ -148,3 +140,29 @@ class AgentTurtlebot(Agent):
         if save:
             self._samples[condition].append(sample)
         return sample
+    
+    def publish_plan(self, state, mpc=False):
+        T, _ = state.shape
+        
+        poseArray = PoseArray()
+        poseArray.header.stamp = rospy.Time.now()
+        poseArray.header.frame_id = "/odom"
+        
+        for t in range(T):
+            pose = Pose()
+            pose.position.x = state[t,0]
+            pose.position.y = state[t,1]
+            pose.position.z = state[t,2]
+
+            pose.orientation.x = state[t,3]
+            pose.orientation.y = state[t,4]
+            pose.orientation.z = state[t,5]
+            pose.orientation.w = state[t,6]
+            
+            poseArray.poses.append(pose)
+        
+        # Publish plan given 
+        if mpc:
+            self._mpc_plan.publish(poseArray)
+        else:
+            self._offline_plan.publish(poseArray)

@@ -1,8 +1,10 @@
 """ This file defines the linear Gaussian policy class. """
 import numpy as np
+import logging
 
 from gps.algorithm.policy.policy import Policy
 from gps.utility.general_utils import check_shape
+LOGGER = logging.getLogger(__name__)
 
 
 class LinearGaussianPolicy(Policy):
@@ -50,10 +52,16 @@ class LinearGaussianPolicy(Policy):
         Returns:
             k: A T x dU bias vector.
         """
+        #mean_noise = np.zeros_like(noise)
         k = np.zeros_like(self.k)
         for i in range(self.T):
             scaled_noise = self.chol_pol_covar[i].T.dot(noise[i])
             k[i] = scaled_noise + self.k[i]
+            #mean_noise[i] = np.abs(scaled_noise)
+        
+        #print "Mean ", np.mean(mean_noise, axis=0)
+        #print "Chol covar: "
+        #print self.chol_pol_covar
        
         return k
 

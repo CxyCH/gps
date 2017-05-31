@@ -76,12 +76,14 @@ class MpcTrajOpt(object):
         mu, sigma = self.forward(traj_distr, trajinfo, cur_t)
         new_mpc = self.backward(self.mpc_pol[n], traj_distr, trajinfo, X_ref, mu, sigma, cur_t, pol_info)
         
+        # Forward to get plan state
+        new_mu, new_sigma = self.forward(new_mpc, trajinfo, cur_t, mpc=True)
         # Store mpc
         self.mpc_pol[n] = new_mpc
         
-        return new_mpc
+        return new_mpc, new_mu
         
-    def forward(self, traj_distr, traj_info, cur_t):
+    def forward(self, traj_distr, traj_info, cur_t, mpc=False):
         """
         Perform LQR forward pass. Computes state-action marginals from
         dynamics and policy.
@@ -115,8 +117,15 @@ class MpcTrajOpt(object):
         mu[0, idx_x] = traj_info.x0mu
     
         for t in range(T):
-            t_traj = cur_t+t
-            if t_traj > self.T-1:
+            # t trajectory distribution
+            t_dyn = cur_t+t
+            # t dynamics
+            if mpc:
+                t_traj = t
+            else:
+                t_traj = cur_t+t
+            
+            if t_dyn > self.T-1:
                 break
             sigma[t, :, :] = np.vstack([
                 np.hstack([
@@ -136,9 +145,9 @@ class MpcTrajOpt(object):
             ])
             if t < T - 1:
                 sigma[t+1, idx_x, idx_x] = \
-                        Fm[t_traj, :, :].dot(sigma[t, :, :]).dot(Fm[t_traj, :, :].T) + \
-                        dyn_covar[t_traj, :, :]
-                mu[t+1, idx_x] = Fm[t_traj, :, :].dot(mu[t, :]) + fv[t_traj, :]
+                        Fm[t_dyn, :, :].dot(sigma[t, :, :]).dot(Fm[t_dyn, :, :].T) + \
+                        dyn_covar[t_dyn, :, :]
+                mu[t+1, idx_x] = Fm[t_dyn, :, :].dot(mu[t, :]) + fv[t_dyn, :]
         return mu, sigma
     
     def backward(self, prev_mpc_traj_distr, traj_distr, traj_info, x0, mu, sigma, cur_t, pol_info):

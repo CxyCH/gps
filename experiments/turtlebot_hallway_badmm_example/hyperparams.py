@@ -112,7 +112,7 @@ agent = {
     'T': 150,
     'x0': x0s,
     'use_mpc': common['use_mpc'],
-    'M': 4,
+    'M': 10,
     'reset_conditions': reset_conditions,
     'sensor_dims': SENSOR_DIMS,
     'state_include': [MOBILE_POSITION, MOBILE_ORIENTATION, \

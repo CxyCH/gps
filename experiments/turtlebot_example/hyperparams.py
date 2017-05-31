@@ -69,11 +69,8 @@ for i in xrange(common['conditions']):
 		state = np.zeros(map_state[i].size)
 		state[:idx_pos] = map_state[i][:idx_pos] - odom_pose
 		
-		# Change orientation
-		state[idx_pos] = map_state[i][idx_pos+2] # w
-		state[idx_pos+1] = map_state[i][idx_pos+3] # z
-		state[idx_pos+2] = map_state[i][idx_pos+1] # x
-		state[idx_pos+3] = map_state[i][idx_pos] # y
+		# odom state is independent to map state
+		state[idx_pos:idx_pos+idx_ori] = [0., 0., 0., 1.]
 		
 		x0s.append(state)
 		reset_conditions.append(map_state[i])
@@ -127,15 +124,15 @@ state_cost = {
     'type': CostState,
     'data_types' : {
         MOBILE_ORIENTATION: {
-            'wp': np.ones(SENSOR_DIMS[MOBILE_ORIENTATION])*10000.,
+            'wp': np.ones(SENSOR_DIMS[MOBILE_ORIENTATION])*100.,
             'target_state': np.array([0., 0., 0., 1.]),
         },
         MOBILE_VELOCITIES_LINEAR: {
-            'wp': np.ones(SENSOR_DIMS[MOBILE_VELOCITIES_LINEAR])*1000.0,
+            'wp': np.ones(SENSOR_DIMS[MOBILE_VELOCITIES_LINEAR])*100.0,
             'target_state': np.array([1.0, 0., 0.]),
         },
         MOBILE_VELOCITIES_ANGULAR: {
-            'wp': np.ones(SENSOR_DIMS[MOBILE_VELOCITIES_ANGULAR])*250.,
+            'wp': np.ones(SENSOR_DIMS[MOBILE_VELOCITIES_ANGULAR])*2.5,
             'target_state': np.array([0., 0., 0.]),
         },
     },
@@ -152,7 +149,7 @@ obstacle_cost = {
 algorithm['cost'] = {
     'type': CostSum,
     'costs': [action_cost, state_cost, obstacle_cost],
-    'weights': [1.0, 1.0, 1000.0],
+    'weights': [1.0, 1.0, 25.0],
 }
 
 
