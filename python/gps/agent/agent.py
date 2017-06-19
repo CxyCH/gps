@@ -269,3 +269,7 @@ class Agent(object):
             index[axes[i]] = slice(self._x_data_idx[data_types[i]][0],
                                    self._x_data_idx[data_types[i]][-1] + 1)
         return existing_mat[index]
+
+    def publish_plan(self, state, mpc=False):
+        # Publish plan given 
+        pass

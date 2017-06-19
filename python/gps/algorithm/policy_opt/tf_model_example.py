@@ -69,14 +69,15 @@ def get_loss_layer(mlp_out, action, precision, batch_size):
     return euclidean_loss_layer(a=action, b=mlp_out, precision=precision, batch_size=batch_size)
 
 
-def example_tf_network(dim_input=27, dim_output=7, batch_size=25, network_config=None):
+def tf_network(dim_input=27, dim_output=7, batch_size=25, network_config=None):
     """
-    An example of how one might want to specify a network in tensorflow.
+    Specifying a fully-connected network in TensorFlow.
 
     Args:
         dim_input: Dimensionality of input.
         dim_output: Dimensionality of the output.
         batch_size: Batch size.
+        network_config: dictionary of network structure parameters
     Returns:
         a TfMap object used to serialize, inputs, outputs, and loss.
     """

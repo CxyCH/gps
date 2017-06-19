@@ -143,17 +143,31 @@ class AlgorithmBADMM(Algorithm):
             wt = np.zeros((N, T))
             # Get time-indexed actions.
             for t in range(T):
-                # Compute actions along this trajectory.
-                prc[:, t, :, :] = np.tile(traj.inv_pol_covar[t, :, :],
-                                          [N, 1, 1])
-                for i in range(N):
-                    mu[i, t, :] = \
-                            (traj.K[t, :, :].dot(X[i, t, :]) + traj.k[t, :]) - \
-                            np.linalg.solve(
-                                prc[i, t, :, :] / pol_info.pol_wt[t],
-                                pol_info.lambda_K[t, :, :].dot(X[i, t, :]) + \
-                                        pol_info.lambda_k[t, :]
-                            )
+                if not self.mpc: # is empty
+                    # Compute actions along this trajectory.
+                    prc[:, t, :, :] = np.tile(traj.inv_pol_covar[t, :, :],
+                                              [N, 1, 1])
+                    for i in range(N):
+                        mu[i, t, :] = \
+                                (traj.K[t, :, :].dot(X[i, t, :]) + traj.k[t, :]) - \
+                                np.linalg.solve(
+                                    prc[i, t, :, :] / pol_info.pol_wt[t],
+                                    pol_info.lambda_K[t, :, :].dot(X[i, t, :]) + \
+                                            pol_info.lambda_k[t, :]
+                                )
+                else:
+                    for i in range(N):
+                        mpc = self.mpc[m][i]
+                        n, t_mpc = mpc.convert_t_traj(t)
+                        mpc_pol = mpc.mpc_pol[n]
+                        prc[i, t, :, :] = mpc_pol.inv_pol_covar[t_mpc, :, :]
+                        mu[i, t, :] = \
+                                (mpc_pol.K[t_mpc, :, :].dot(X[i, t, :]) + mpc_pol.k[t_mpc, :]) - \
+                                np.linalg.solve(
+                                    prc[i, t, :, :] / pol_info.pol_wt[t],
+                                    pol_info.lambda_K[t, :, :].dot(X[i, t, :]) + \
+                                            pol_info.lambda_k[t, :]
+                                )
                 wt[:, t].fill(pol_info.pol_wt[t])
             tgt_mu = np.concatenate((tgt_mu, mu))
             tgt_prc = np.concatenate((tgt_prc, prc))
@@ -496,9 +510,12 @@ class AlgorithmBADMM(Algorithm):
 
         return predicted_cost, predicted_kl
 
-    def compute_costs(self, m, eta):
+    def compute_costs(self, m, eta, augment=True):
         """ Compute cost estimates used in the LQR backward pass. """
         traj_info, traj_distr = self.cur[m].traj_info, self.cur[m].traj_distr
+        if not augment:  # Whether to augment cost with term to penalize KL
+            return traj_info.Cm, traj_info.cv
+
         pol_info = self.cur[m].pol_info
         multiplier = self._hyperparams['max_ent_traj']
         T, dU, dX = traj_distr.T, traj_distr.dU, traj_distr.dX

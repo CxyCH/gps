@@ -19,6 +19,7 @@ import time
 import scipy.io
 import numpy as np
 import numpy.matlib
+import traceback
 
 # Add gps/python to path so that imports work.
 sys.path.append('/'.join(str.split(__file__, '/')[:-2]))
@@ -28,6 +29,11 @@ from gps.sample.sample_list import SampleList
 from gps.utility.general_utils import disable_caffe_logs, Timer, mkdir_p, compute_distance
 from gps.utility.demo_utils import get_demos, extract_samples
 from gps.utility.visualization import compare_samples_curve, visualize_samples
+from gps.algorithm.traj_opt.mpc_traj_opt import MpcTrajOpt
+from gps.algorithm.algorithm_traj_opt import AlgorithmTrajOpt
+from gps.sample.sample import Sample
+from math import ceil
+from copy import deepcopy
 
 
 class GPSMain(object):
@@ -80,6 +86,7 @@ class GPSMain(object):
                 run_alg(config['demo_agent'], config['demo_agent']['algorithm_file'], record_gif=record_gif, verbose=True)
             else:
                 with Timer('loading demos'):
+                    # TODO: Init algorithm with MPC in get_demos function
                     demos = get_demos(self)
                     self.algorithm.demoX = demos['demoX']
                     self.algorithm.demoU = demos['demoU']
@@ -90,7 +97,16 @@ class GPSMain(object):
         else:
             with Timer('init algorithm'):
                 self.algorithm = config['algorithm']['type'](config['algorithm'])
-
+                self.use_mpc = False
+                if 'use_mpc' in config['common'] and config['common']['use_mpc']:
+                    self.use_mpc = True
+                    config['agent']['T'] = config['agent']['M'] 
+                    self.mpc_agent = config['agent']['type'](config['agent'])
+                    
+                    # Algorithm __init__ deleted it
+                    config['algorithm']['agent'] = self.agent   
+                    
+                    self.algorithm.init_mpc(config['num_samples'], config['algorithm'])
 
     def run(self, itr_load=None):
         """
@@ -295,13 +311,8 @@ class GPSMain(object):
                     'Sampling: iteration %d, condition %d, sample %d.' %
                     (itr, cond, i)
                 )
-
-                self.agent.sample(
-                    pol, cond,
-                    verbose=(i < self._hyperparams['verbose_trials']),
-                    record_gif=gif_name,
-                    record_gif_fps=gif_fps,
-                )
+                
+                self._roll_out(pol, itr, cond, i, record_gif=gif_name, record_gif_fps=gif_fps)
 
                 if self.gui.mode == 'request' and self.gui.request == 'fail':
                     redo = True
@@ -310,13 +321,71 @@ class GPSMain(object):
                 else:
                     redo = False
         else:
+            self._roll_out(pol, itr, cond, i, record_gif=gif_name, record_gif_fps=gif_fps)
+
+    def _roll_out(self, pol, itr, cond, i, record_gif, record_gif_fps):
+        if self.use_mpc and itr > 0:
+            T = self.agent.T
+            M = self.mpc_agent.T
+            N = int(ceil(T/(M-1.)))
+            X_t = self.agent.x0[cond]
+            
+            # Only forward pass one time per cond, 
+            # because this same for all sample
+            if i == 0:
+                # Note: At this time algorithm.prev = algorithm.cur,
+                #       and prev.traj_info already have x0mu, x0sigma.
+                self.off_prior, _ = self.algorithm.traj_opt.forward(pol, self.algorithm.prev[cond].traj_info)
+                self.agent.publish_plan(self.off_prior)
+                
+            if type(self.algorithm) == AlgorithmTrajOpt:
+                pol_info = None
+            else:
+                pol_info = self.algorithm.cur[cond].pol_info
+                        
+            for n in range(N):
+                # Note: M-1 because action[M] = [0,0].
+                t_traj = n*(M-1)
+                reset = True if(n == 0) else False
+                
+                mpc_pol, mpc_state = self.algorithm.mpc[cond][i].update(
+                    n, X_t, self.off_prior, pol, 
+                    self.algorithm.cur[cond].traj_info, t_traj, pol_info
+                )
+                self.agent.publish_plan(mpc_state, True)
+                new_sample = self.mpc_agent.sample(
+                    mpc_pol, cond, 
+                    reset=reset, noisy=True,
+                    verbose=(i < self._hyperparams['verbose_trials'])
+                )
+                X_t = new_sample.get_X(t=M-1)
+            
+            """
+             Merge sample for optimize offline trajectory distribution
+            """
+            full_sample = Sample(self.agent)
+            sample_lists = self.mpc_agent.get_samples(cond)
+            keys = sample_lists[0]._data.keys()
+            t = 0
+            for sample in sample_lists:
+                for m in range(sample.T-1):
+                    for sensor in keys:
+                        full_sample.set(sensor, sample.get(sensor, m), t)
+                    t = t+1
+                    if t+1 > T: 
+                        break
+            
+            self.agent._samples[cond].append(full_sample)
+            # Clear agent samples.
+            self.mpc_agent.clear_samples()
+        else:
             self.agent.sample(
                 pol, cond,
                 verbose=(i < self._hyperparams['verbose_trials']),
-                record_gif=gif_name,
-                record_gif_fps=gif_fps,
+                record_gif=record_gif,
+                record_gif_fps=record_gif_fps,
             )
-
+    
     def _take_iteration(self, itr, sample_lists):
         """
         Take an iteration of the algorithm.

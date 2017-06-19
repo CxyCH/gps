@@ -137,7 +137,7 @@ class AgentROS(Agent):
                        condition_data[AUXILIARY_ARM]['data'])
         time.sleep(2.0)  # useful for the real robot, so it stops completely
 
-    def sample(self, policy, condition, verbose=True, save=True, noisy=True):
+    def sample(self, policy, condition, reset=True, verbose=True, save=True, noisy=True):
         """
         Reset and execute a policy and collect a sample.
         Args:
@@ -153,7 +153,8 @@ class AgentROS(Agent):
             if isinstance(policy, TfPolicy):
                 self._init_tf(policy.dU)
 
-        self.reset(condition)
+        if reset:
+            self.reset(condition)
         # Generate noise.
         if noisy:
             noise = generate_noise(self.T, self.dU, self._hyperparams)

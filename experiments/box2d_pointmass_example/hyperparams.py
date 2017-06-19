@@ -9,6 +9,7 @@ from gps import __file__ as gps_filepath
 from gps.agent.box2d.agent_box2d import AgentBox2D
 from gps.agent.box2d.point_mass_world import PointMassWorld
 from gps.algorithm.algorithm_traj_opt import AlgorithmTrajOpt
+from gps.algorithm.cost.cost_obstacles import CostObstacle
 from gps.algorithm.cost.cost_state import CostState
 from gps.algorithm.cost.cost_action import CostAction
 from gps.algorithm.cost.cost_sum import CostSum
@@ -16,7 +17,7 @@ from gps.algorithm.dynamics.dynamics_lr_prior import DynamicsLRPrior
 from gps.algorithm.dynamics.dynamics_prior_gmm import DynamicsPriorGMM
 from gps.algorithm.traj_opt.traj_opt_lqr_python import TrajOptLQRPython
 from gps.algorithm.policy.lin_gauss_init import init_pd
-from gps.proto.gps_pb2 import END_EFFECTOR_POINTS, END_EFFECTOR_POINT_VELOCITIES, ACTION
+from gps.proto.gps_pb2 import END_EFFECTOR_POINTS, END_EFFECTOR_POINT_VELOCITIES, ACTION, POSITION_NEAREST_OBSTACLE
 from gps.gui.config import generate_experiment_info
 
 SENSOR_DIMS = {
@@ -36,6 +37,7 @@ common = {
     'target_filename': EXP_DIR + 'target.npz',
     'log_filename': EXP_DIR + 'log.txt',
     'conditions': 1,
+    'use_mpc': True,
 }
 
 if not os.path.exists(common['data_files_dir']):
@@ -46,7 +48,7 @@ agent = {
     'target_state' : np.array([5, 20, 0]),
     "world" : PointMassWorld,
     'render' : False,
-    'x0': np.array([0, 5, 0, 0, 0, 0]),
+    'x0': [np.array([0, 5, 0, 0, 0, 0])],
     'rk': 0,
     'dt': 0.05,
     'substeps': 1,
@@ -54,14 +56,20 @@ agent = {
     'pos_body_idx': np.array([]),
     'pos_body_offset': np.array([]),
     'T': 100,
+    'use_mpc': common['use_mpc'],
+    'M': 5,
     'sensor_dims': SENSOR_DIMS,
     'state_include': [END_EFFECTOR_POINTS, END_EFFECTOR_POINT_VELOCITIES],
     'obs_include': [],
 }
 
+#if common['use_mpc']:
+#		agent['smooth_noise_var'] = 1.0
+
 algorithm = {
     'type': AlgorithmTrajOpt,
     'conditions': common['conditions'],
+    'use_mpc': common['use_mpc'],
 }
 
 algorithm['init_traj_distr'] = {
@@ -71,6 +79,15 @@ algorithm['init_traj_distr'] = {
     'dQ': SENSOR_DIMS[ACTION],
     'dt': agent['dt'],
     'T': agent['T'],
+}
+
+algorithm['init_mpc'] = {
+    'type': init_pd,
+    'init_var': 5.0,
+    'pos_gains': 0.0,
+    'dQ': SENSOR_DIMS[ACTION],
+    'dt': agent['dt'],
+    'T': agent['M'],
 }
 
 action_cost = {

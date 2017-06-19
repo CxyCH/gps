@@ -20,7 +20,7 @@ from gps.algorithm.policy.lin_gauss_init import init_lqr, init_pd
 from gps.algorithm.policy_opt.policy_opt_caffe import PolicyOptCaffe
 from gps.algorithm.policy_opt.policy_opt_tf import PolicyOptTf
 from gps.algorithm.policy.policy_prior_gmm import PolicyPriorGMM
-from gps.algorithm.policy_opt.tf_model_example import example_tf_network
+from gps.algorithm.policy_opt.tf_model_example import tf_network
 from gps.algorithm.cost.cost_utils import RAMP_LINEAR, RAMP_FINAL_ONLY, RAMP_QUADRATIC, evall1l2term
 from gps.utility.data_logger import DataLogger
 from gps.algorithm.policy_opt.tf_model_example import multi_modal_network, multi_modal_network_fp
@@ -114,9 +114,7 @@ algorithm = {
     'policy_sample_mode': 'replace',
     'sample_on_policy': True,
     'plot_dir': EXP_DIR,
-    'agent_pos_body_idx': agent['pos_body_idx'],
-    'agent_pos_body_offset': agent['pos_body_offset'],
-    'target_end_effector': [np.concatenate([np.array([.1, -.1, .01])+ agent['pos_body_offset'][i], np.array([0., 0., 0.])])
+    'target_end_effector': [np.concatenate([np.array([.1, -.1, .01])+ agent['pos_body_offset'][i][0], np.array([0., 0., 0.])])
                             for i in xrange(CONDITIONS)],
 }
 
@@ -156,7 +154,7 @@ torque_cost_1 = [{
 
 fk_cost_1 = [{
     'type': CostFK,
-    'target_end_effector': np.concatenate([np.array([.1, -.1, .01])+ agent['pos_body_offset'][i], np.array([0., 0., 0.])]),
+    'target_end_effector': np.concatenate([np.array([.1, -.1, .01])+ agent['pos_body_offset'][i][0], np.array([0., 0., 0.])]),
     'wp': np.array([1, 1, 1, 0, 0, 0]),
     'l1': 1.0,
     'l2': 0.0,

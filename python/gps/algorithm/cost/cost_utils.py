@@ -31,6 +31,41 @@ def get_ramp_multiplier(ramp_option, T, wp_final_multiplier=1.0):
     wpm[-1] *= wp_final_multiplier
     return wpm
 
+def evalhinglel2loss(wp, d, dsafe, l2):
+    """
+    loss = max(0, dsafe - 0.5 * l2 * d^2)
+    Args:
+        wp: T, matrix with weights for each dimension and time step.
+        d: T x Dx states to evaluate norm on.
+        dsafe: is safe distance
+    """
+    # Get trajectory length.
+    T, Dx = d.shape
+    
+    sqrtwp = np.sqrt(wp)
+    dsclsq = d * sqrtwp
+    dscl = d * wp
+    
+    # loss
+    l2d = 0.5 * np.sum(dsclsq ** 2, axis=1) * l2 
+    l = np.maximum(0, dsafe - l2d).reshape(T,)
+    
+    # gradient - subgradient
+    # = -dscl*l2 if dsafe > d 
+    # = 0 otherwise
+    bin_l = l > 0
+    lx = -1.0 * np.tile(bin_l, [Dx, 1]).transpose() * (dscl * l2)
+    
+    # hessian
+    # = -l2 for diagonal element, if dsafe > d
+    # = 0 otherwise
+    idx = np.where(bin_l == 1)[0]
+    hes = np.zeros([T, Dx, Dx])
+    hes[idx, :, :] = np.eye(Dx)
+    lxx = -1.0 * l2 * (np.expand_dims(wp, axis=2) * hes)    
+    
+    return l, lx, lxx
+    
 
 def evall1l2term(wp, d, Jd, Jdd, l1, l2, alpha):
     """

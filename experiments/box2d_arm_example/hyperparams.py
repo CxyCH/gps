@@ -37,6 +37,7 @@ common = {
     'data_files_dir': EXP_DIR + 'data_files/',
     'log_filename': EXP_DIR + 'log.txt',
     'conditions': 1,
+		'use_mpc': True,
 }
 
 if not os.path.exists(common['data_files_dir']):
@@ -46,7 +47,7 @@ agent = {
     'type': AgentBox2D,
     'target_state' : np.array([0, 0]),
     'world' : ArmWorld,
-    'render' : True,
+    'render' : False,
     'x0': np.array([0.75*np.pi, 0.5*np.pi, 0, 0, 0, 0, 0]),
     'rk': 0,
     'dt': 0.05,
@@ -55,14 +56,20 @@ agent = {
     'pos_body_idx': np.array([]),
     'pos_body_offset': np.array([]),
     'T': 100,
+    'use_mpc': common['use_mpc'],
+    'M': 5,
     'sensor_dims': SENSOR_DIMS,
     'state_include': [JOINT_ANGLES, JOINT_VELOCITIES, END_EFFECTOR_POINTS],
     'obs_include': [],
 }
 
+#if common['use_mpc']:
+#		agent['smooth_noise_var'] = 0.3
+
 algorithm = {
     'type': AlgorithmTrajOpt,
     'conditions': common['conditions'],
+    'use_mpc': common['use_mpc'],
 }
 
 algorithm['init_traj_distr'] = {
@@ -73,6 +80,16 @@ algorithm['init_traj_distr'] = {
     'stiffness': 0.01,
     'dt': agent['dt'],
     'T': agent['T'],
+}
+
+algorithm['init_mpc'] = {
+    'type': init_lqr,
+    'init_gains': np.zeros(SENSOR_DIMS[ACTION]),
+    'init_acc': np.zeros(SENSOR_DIMS[ACTION]),
+    'init_var': 0.1,
+    'stiffness': 0.01,
+    'dt': agent['dt'],
+    'T': agent['M'],
 }
 
 action_cost = {

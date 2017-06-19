@@ -402,6 +402,8 @@ class GPSTrainingGUI(object):
 
         for m in range(algorithm.M):
             cost = costs[m]
+            # TODO: Note SSRL branch don't have mean
+            # step = np.mean(algorithm.prev[m].step_mult * algorithm.base_kl_step)
             step = algorithm.prev[m].step_mult * algorithm.base_kl_step
             entropy = 2*np.sum(np.log(np.diagonal(algorithm.prev[m].traj_distr.chol_pol_covar,
                     axis1=1, axis2=2)))

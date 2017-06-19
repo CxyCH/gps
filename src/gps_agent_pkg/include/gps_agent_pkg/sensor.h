@@ -25,6 +25,7 @@ enum SensorType
     EncoderSensorType = 0,
     ROSTopicSensorType = 1,
     CameraSensorType,
+	MobileSensorType,
     TotalSensorTypes
 };
 

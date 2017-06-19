@@ -21,6 +21,7 @@ class AgentBox2D(Agent):
 
         self._setup_conditions()
         self._setup_world(self._hyperparams["world"],
+                          self._hyperparams["world_info"],
                           self._hyperparams["target_state"],
                           self._hyperparams["render"])
 
@@ -34,16 +35,16 @@ class AgentBox2D(Agent):
                       'noisy_body_idx', 'noisy_body_var'):
             self._hyperparams[field] = setup(self._hyperparams[field], conds)
 
-    def _setup_world(self, world, target, render):
+    def _setup_world(self, world, world_info, target, render):
         """
         Helper method for handling setup of the Box2D world.
         """
         self.x0 = self._hyperparams["x0"]
-        self._worlds = [world(self.x0[i], target, render)
+        self._worlds = [world(self.x0[i], world_info, target, render)
                         for i in range(self._hyperparams['conditions'])]
 
 
-    def sample(self, policy, condition, verbose=False, save=True, noisy=True):
+    def sample(self, policy, condition, reset=True, verbose=False, save=True, noisy=True):
         """
         Runs a trial and constructs a new sample containing information
         about the trial.
@@ -55,8 +56,9 @@ class AgentBox2D(Agent):
             save (boolean): Whether or not to store the trial into the samples.
             noisy (boolean): Whether or not to use noise during sampling.
         """
-        self._worlds[condition].run()
-        self._worlds[condition].reset_world()
+        if reset:
+            self._worlds[condition].run()
+            self._worlds[condition].reset_world()
         b2d_X = self._worlds[condition].get_state()
         new_sample = self._init_sample(b2d_X)
         U = np.zeros([self.T, self.dU])
