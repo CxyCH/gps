@@ -55,10 +55,10 @@ common = {
     'conditions': CONDITIONS,
     'demo_conditions': 1,
     'demo_exp_dir': DEMO_DIR,
-    'demo_controller_file': DEMO_DIR + 'data_files/demo_algorithm.pkl',
+    'demo_controller_file': DEMO_DIR + 'data_files/algorithm_itr_59.pkl',
     'LG_demo_file': os.path.join(EXP_DIR, 'data_files', 'demos_LG.pkl'),
     'NN_demo_file': os.path.join(EXP_DIR, 'data_files', 'demos_NN.pkl'),
-    'nn_demo': False,
+    'nn_demo': True,
 }
 
 if not os.path.exists(common['data_files_dir']):

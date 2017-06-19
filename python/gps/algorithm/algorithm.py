@@ -16,6 +16,7 @@ from gps.sample.sample_list import SampleList
 from gps.utility.general_utils import logsum
 from gps.algorithm.algorithm_utils import fit_emp_controller
 
+
 LOGGER = ColorLogger(__name__)
 
 
@@ -84,7 +85,10 @@ class Algorithm(object):
                 hyperparams['cost'][i]['type'](hyperparams['cost'][i])
                 for i in range(hyperparams['conditions'])]
         else:
-            self.cost = self._hyperparams['cost']['type'](self._hyperparams['cost'])
+            if hyperparams['cost']['type'].__name__ == 'CostIOCSupervised':
+                self.cost = self._hyperparams['cost']['type'](self._hyperparams['cost'], agent=agent)
+            else:
+                self.cost = self._hyperparams['cost']['type'](self._hyperparams['cost'])
 
         if type(self._hyperparams['cost']) is dict and self._hyperparams['cost'].get('agent', False):
             del self._hyperparams['cost']['agent']

@@ -44,6 +44,7 @@ def setup(value, n):
         except AttributeError:
             return [value for _ in range(n)]
     if len(value) != n:
+        print value, n, len(value)
         raise AgentConfigException('Number of elements (%d) must match number of conditions (%d) or 1.' %
                                    (len(value), n))
     return value

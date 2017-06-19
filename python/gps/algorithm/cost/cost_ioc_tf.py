@@ -220,6 +220,8 @@ class CostIOCTF(Cost):
         self.saver.save(self.session, fname)
 
     def restore_model(self, fname):
+        #saver = tf.train.import_meta_graph(fname+'.meta')
+        #saver.restore(self.session,tf.train.latest_checkpoint('./'))
         self.saver.restore(self.session, fname)
         LOGGER.debug('Restoring model from: %s', fname)
 

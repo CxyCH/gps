@@ -224,7 +224,7 @@ config = {
     'common': common,
     'agent': agent,
     'demo_agent': demo_agent,
-    'gui_on': True,
+    'gui_on': False,
     'algorithm': algorithm,
 }
 seed=2

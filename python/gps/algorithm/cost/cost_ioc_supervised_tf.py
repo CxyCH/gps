@@ -16,7 +16,7 @@ LOGGER = logging.getLogger(__name__)
 
 class CostIOCSupervised(CostIOCTF):
     """ Set up weighted neural network norm loss with learned parameters. """
-    def __init__(self, hyperparams, train_samples=None, test_samples=None, train_costs=None):
+    def __init__(self, hyperparams, agent=None, train_samples=None, test_samples=None, train_costs=None):
         super(CostIOCSupervised, self).__init__(hyperparams)
         self.gt_cost = hyperparams['gt_cost']  # Ground truth cost
         self.gt_cost = self.gt_cost['type'](self.gt_cost)
@@ -28,7 +28,9 @@ class CostIOCSupervised(CostIOCTF):
 
         self.update_after = hyperparams.get('update_after', 0)
 
-        if hyperparams.get('agent', False):
+        if agent is not None:
+            demo_agent = agent
+        elif hyperparams.get('agent', False):
             demo_agent = hyperparams['agent']  # Required for sample packing
             demo_agent = demo_agent['type'](demo_agent)
 

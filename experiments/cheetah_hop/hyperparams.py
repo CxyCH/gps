@@ -86,6 +86,7 @@ algorithm = {
     'min_step_mult': 0.1,
     'max_step_mult': 10.0,
     'max_ent_traj': 1.0,
+    #'target_end_effector': [np.array([TARGET_X]) for i in xrange(common['conditions'])],
 
     'compute_distances': {
         'type': 'min',

@@ -55,7 +55,7 @@ common = {
     'conditions': CONDITIONS,
     'demo_conditions': 1,
     'demo_exp_dir': DEMO_DIR,
-    'demo_controller_file': DEMO_DIR + 'data_files/algorithm_itr_30.pkl',
+    'demo_controller_file': DEMO_DIR + 'data_files/algorithm_itr_44.pkl',
     'supervised_exp_dir': SUPERVISED_DIR,
     'LG_demo_file': os.path.join(EXP_DIR, 'data_files', 'demos_LG.pkl'),
     'NN_demo_file': os.path.join(EXP_DIR, 'data_files', 'demos_NN.pkl'),
@@ -81,7 +81,7 @@ agent = {
     'meta_include': [],
     'camera_pos': np.array([0., -12., 7., 0., 0., 0.]),
     'record_reward': False,
-    'pos_body_offset': [0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2], # TODO: for visualization?
+    #'pos_body_offset': [0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2], # TODO: for visualization?
 }
 
 demo_agent = {
@@ -147,6 +147,7 @@ algorithm = {
     'num_demos': 20,
     'init_samples': 20,
     'demo_var_mult': 1.0,
+    'target_end_effector': [np.array([TARGET_X]) for i in xrange(common['conditions'])],
 
     'compute_distances': {
         'type': 'min',
@@ -239,7 +240,7 @@ config = {
     'record_gif': {
         'gif_dir': os.path.join(common['data_files_dir'], 'gifs'),
         'gifs_per_condition': 1,
-        'record_every': 5,
+        'record_every': 60,
         'save_traj_samples': False,
         'fps': 40,
     }
