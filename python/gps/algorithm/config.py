@@ -90,6 +90,14 @@ ALG_PI2 = {
     'fit_dynamics': False,
 }
 
+# AlgorithmPIGPS
+ALG_PIGPS = {    
+    'init_pol_wt': 0.01,
+    'policy_sample_mode': 'add',    
+    # Dynamics fitting is not required for PIGPS.
+    'fit_dynamics': False,
+}
+
 
 # AlgorithmPILQR
 ALG_PILQR = {

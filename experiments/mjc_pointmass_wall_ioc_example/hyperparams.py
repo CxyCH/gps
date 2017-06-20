@@ -19,7 +19,7 @@ from gps.algorithm.dynamics.dynamics_lr_prior import DynamicsLRPrior
 from gps.algorithm.dynamics.dynamics_prior_gmm import DynamicsPriorGMM
 from gps.algorithm.policy.policy_prior_gmm import PolicyPriorGMM
 from gps.algorithm.policy_opt.policy_opt_tf import PolicyOptTf
-from gps.algorithm.policy_opt.tf_model_example import example_tf_network
+from gps.algorithm.policy_opt.tf_model_example import tf_network
 from gps.algorithm.traj_opt.traj_opt_lqr_python import TrajOptLQRPython
 from gps.algorithm.policy.lin_gauss_init import init_pd
 from gps.algorithm.policy.policy_prior import PolicyPrior
@@ -208,7 +208,7 @@ algorithm['policy_opt'] = {
         'dim_hidden': 40,
         'sensor_dims': SENSOR_DIMS,
     },
-    'network_model': example_tf_network,
+    'network_model': tf_network,
     'fc_only_iterations': 2000,
     'init_iterations': 1000,
     'iterations': 1000,  # was 100

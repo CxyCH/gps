@@ -78,6 +78,7 @@ class GPSMain(object):
             self.gui = GPSTrainingGUI(config['common'], gui_on=config['gui_on'])
 
         config['algorithm']['agent'] = self.agent
+        self.use_mpc = False # Default value
 
         if self.using_ioc() and not test_pol:
             if config['demo_agent'].get('eval_only', False):
@@ -97,7 +98,7 @@ class GPSMain(object):
         else:
             with Timer('init algorithm'):
                 self.algorithm = config['algorithm']['type'](config['algorithm'])
-                self.use_mpc = False
+                
                 if 'use_mpc' in config['common'] and config['common']['use_mpc']:
                     self.use_mpc = True
                     config['agent']['T'] = config['agent']['M'] 
