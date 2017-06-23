@@ -89,5 +89,15 @@ def get_demos(gps):
     gps._hyperparams['algorithm']['init_traj_distr']['init_demo_x'] = np.mean(demos['demoX'], 0)
     gps._hyperparams['algorithm']['init_traj_distr']['init_demo_u'] = np.mean(demos['demoU'], 0)
     gps.algorithm = gps._hyperparams['algorithm']['type'](gps._hyperparams['algorithm'])
+    
+    if 'use_mpc' in gps._hyperparams['common'] and gps._hyperparams['common']['use_mpc']:
+		gps.use_mpc = True
+		gps._hyperparams['agent']['T'] = gps._hyperparams['agent']['M'] 
+		gps.mpc_agent = gps._hyperparams['agent']['type'](gps._hyperparams['agent'])
+		
+		# Algorithm __init__ deleted it
+		gps._hyperparams['algorithm']['agent'] = gps.agent   
+		
+		gps.algorithm.init_mpc(gps._hyperparams['num_samples'], gps._hyperparams['algorithm'])
 
     return demos
