@@ -93,6 +93,7 @@ MUJOCO_LOG.TXT
 #Tensorflow
 *.wts
 *.wts.meta
+checkpoint
 
 # Data files
 *.pkl
@@ -103,3 +104,8 @@ experiments/**/data_files/
 experiments/**/log.txt
 experiments/**/*.png
 .previous_experiment
+
+# Pydef
+.project
+.pydevproject
+
