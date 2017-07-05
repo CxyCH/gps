@@ -66,10 +66,25 @@ class AgentBox2D(Agent):
             noise = generate_noise(self.T, self.dU, self._hyperparams)
         else:
             noise = np.zeros((self.T, self.dU))
+        tin = 0
+        t_time = 0
         for t in range(self.T):
             X_t = new_sample.get_X(t=t)
             obs_t = new_sample.get_obs(t=t)
             U[t, :] = policy.act(X_t, obs_t, t, noise[t, :])
+            
+            """
+            if tin == t_time:
+                lin_x = float(raw_input("Linear X = "))
+                lin_y = float(raw_input("Linear Y = "))
+                t_time = int(raw_input("In T = "))
+                tin = 0
+            tin += 1
+
+            U[t, :] = np.array([lin_x, lin_y, 0])+(noise[t, :]*np.array([1.,1.,0.1]))
+            print "Now: ", t
+            """
+                
             if (t+1) < self.T:
                 for _ in range(self._hyperparams['substeps']):
                     self._worlds[condition].run_next(U[t, :])
