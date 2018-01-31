@@ -61,7 +61,7 @@ def construct_nn_cost_net_tf(num_hidden=3, dim_hidden=42, dim_input=27, T=100,
                              demo_batch_size=5, sample_batch_size=5, phase=None, ioc_loss='ICML',
                              Nq=1, smooth_reg_weight=0.0, mono_reg_weight=0.0, gp_reg_weight=0.0,
                              multi_obj_supervised_wt=1.0, learn_wu=False, x_idx=None, img_idx=None,
-                             num_filters=[15,15,15]):
+                             num_filters=[15,15,15], learn_feature=None):
     """ Construct cost net (with images and robot config).
     Args:
         ...
@@ -71,44 +71,51 @@ def construct_nn_cost_net_tf(num_hidden=3, dim_hidden=42, dim_input=27, T=100,
 
     inputs = {}
     inputs['demo_obs'] = demo_obs = tf.placeholder(tf.float32, shape=(demo_batch_size, T, dim_input))
+    inputs['demo_pos_obstacle'] = demo_pos_obstacle = tf.placeholder(tf.float32, shape=(demo_batch_size,T, 3))
     inputs['demo_torque_norm'] = demo_torque_norm = tf.placeholder(tf.float32, shape=(demo_batch_size, T, 1))
     inputs['demo_iw'] = demo_imp_weight = tf.placeholder(tf.float32, shape=(demo_batch_size, 1))
     inputs['sample_obs'] = sample_obs = tf.placeholder(tf.float32, shape=(sample_batch_size, T, dim_input))
+    inputs['sample_pos_obstacle'] = sample_pos_obstacle = tf.placeholder(tf.float32, shape=(sample_batch_size, T, 3))
     inputs['sample_torque_norm'] = sample_torque_norm = tf.placeholder(tf.float32, shape=(sample_batch_size, T, 1))
     inputs['sample_iw'] = sample_imp_weight = tf.placeholder(tf.float32, shape=(sample_batch_size, 1))
     sup_batch_size = sample_batch_size+demo_batch_size
     inputs['sup_obs'] = sup_obs = tf.placeholder(tf.float32, shape=(sup_batch_size, T, dim_input))
+    inputs['sup_pos_obstacle'] = sup_pos_obstacle = tf.placeholder(tf.float32, shape=(sup_batch_size, T, 3))
     inputs['sup_torque_norm'] = sup_torque_norm = tf.placeholder(tf.float32, shape=(sup_batch_size, T, 1))
     inputs['sup_cost_labels'] = sup_cost_labels = tf.placeholder(tf.float32, shape=(sup_batch_size, T, 1))
 
     # Inputs for single eval test runs
     inputs['test_obs'] = test_obs = tf.placeholder(tf.float32, shape=(T, dim_input), name='test_obs')
+    inputs['test_pos_obstacle'] = test_pos_obstacle = tf.placeholder(tf.float32, shape=(T, 3), name='test_pos_obstacle')
     inputs['test_torque_norm'] = test_torque_norm = tf.placeholder(tf.float32, shape=(T, 1), name='test_torque_u')
 
     inputs['test_obs_single'] = test_obs_single = tf.placeholder(tf.float32, shape=(dim_input), name='test_obs_single')
+    inputs['test_pos_obstacle_single'] = test_pos_obstacle_single = tf.placeholder(tf.float32, shape=(dim_input), name='test_pos_obstacle_single')
     inputs['test_torque_single'] = test_torque_single = tf.placeholder(tf.float32, shape=(1), name='test_torque_u_single')
 
     if x_idx is not None:
         x_idx = tf.constant(x_idx)
         img_idx = tf.constant(img_idx)
-        _, test_imgfeat, _, test_cost  = nn_vis_forward(test_obs, test_torque_norm, num_hidden=num_hidden, learn_wu=learn_wu, dim_hidden=dim_hidden, x_idx=x_idx, img_idx=img_idx, num_filters=num_filters)
-        demo_cost_preu, _, _, demo_costs = nn_vis_forward(demo_obs, demo_torque_norm, num_hidden=num_hidden, learn_wu=learn_wu, dim_hidden=dim_hidden, x_idx=x_idx, img_idx=img_idx, num_filters=num_filters)
-        sample_cost_preu, _, _, sample_costs = nn_vis_forward(sample_obs, sample_torque_norm, num_hidden=num_hidden,learn_wu=learn_wu, dim_hidden=dim_hidden, x_idx=x_idx, img_idx=img_idx, num_filters=num_filters)
-        sup_cost_preu, _, _, sup_costs = nn_vis_forward(sup_obs, sup_torque_norm, num_hidden=num_hidden,learn_wu=learn_wu, dim_hidden=dim_hidden, x_idx=x_idx, img_idx=img_idx, num_filters=num_filters)
+        _, test_imgfeat, _, test_cost  = nn_vis_forward(test_obs, test_torque_norm, num_hidden=num_hidden, learn_wu=learn_wu,learn_feature=learn_feature, dim_hidden=dim_hidden, x_idx=x_idx, img_idx=img_idx, num_filters=num_filters)
+        demo_cost_preu, _, _, demo_costs = nn_vis_forward(demo_obs, demo_torque_norm, num_hidden=num_hidden, learn_wu=learn_wu,learn_feature=learn_feature, dim_hidden=dim_hidden, x_idx=x_idx, img_idx=img_idx, num_filters=num_filters)
+        sample_cost_preu, _, _, sample_costs = nn_vis_forward(sample_obs, sample_torque_norm, num_hidden=num_hidden,learn_wu=learn_wu,learn_feature=learn_feature, dim_hidden=dim_hidden, x_idx=x_idx, img_idx=img_idx, num_filters=num_filters)
+        sup_cost_preu, _, _, sup_costs = nn_vis_forward(sup_obs, sup_torque_norm, num_hidden=num_hidden,learn_wu=learn_wu,learn_feature=learn_feature, dim_hidden=dim_hidden, x_idx=x_idx, img_idx=img_idx, num_filters=num_filters)
     else:
-        _, test_cost  = nn_forward(test_obs, test_torque_norm, num_hidden=num_hidden, learn_wu=learn_wu, dim_hidden=dim_hidden)
-        demo_cost_preu, demo_costs = nn_forward(demo_obs, demo_torque_norm, num_hidden=num_hidden, learn_wu=learn_wu, dim_hidden=dim_hidden)
-        sample_cost_preu, sample_costs = nn_forward(sample_obs, sample_torque_norm, num_hidden=num_hidden,learn_wu=learn_wu, dim_hidden=dim_hidden)
-        sup_cost_preu, sup_costs = nn_forward(sup_obs, sup_torque_norm, num_hidden=num_hidden,learn_wu=learn_wu, dim_hidden=dim_hidden)
+        ### TEST TODO CLEAR THIS
+        test_feat = compute_cost_weight(test_obs, num_hidden=num_hidden, learn_feature=learn_feature, dim_hidden=dim_hidden)
+        test_cost_preu, test_cost  = nn_forward(test_obs, test_torque_norm, num_hidden=num_hidden, learn_wu=learn_wu,learn_feature=learn_feature, dim_hidden=dim_hidden)
+        demo_cost_preu, demo_costs = nn_forward(demo_obs, demo_torque_norm, num_hidden=num_hidden, learn_wu=learn_wu,learn_feature=learn_feature, dim_hidden=dim_hidden)
+        sample_cost_preu, sample_costs = nn_forward(sample_obs, sample_torque_norm, num_hidden=num_hidden,learn_wu=learn_wu,learn_feature=learn_feature, dim_hidden=dim_hidden)
+        sup_cost_preu, sup_costs = nn_forward(sup_obs, sup_torque_norm, num_hidden=num_hidden,learn_wu=learn_wu,learn_feature=learn_feature, dim_hidden=dim_hidden)
 
     # Build a differentiable test cost by feeding each timestep individually
     test_obs_single = tf.expand_dims(test_obs_single, 0)
     test_torque_single = tf.expand_dims(test_torque_single, 0)
     if x_idx is not None:
-        test_cost_single_preu, test_X_single, test_feat_single, _ = nn_vis_forward(test_obs_single, test_torque_single, num_hidden=num_hidden, dim_hidden=dim_hidden, learn_wu=learn_wu, x_idx=x_idx, img_idx=img_idx)
+        test_cost_single_preu, test_X_single, test_feat_single, _ = nn_vis_forward(test_obs_single, test_torque_single, num_hidden=num_hidden, dim_hidden=dim_hidden, learn_wu=learn_wu,learn_feature=learn_feature, x_idx=x_idx, img_idx=img_idx)
     else:
         test_feat_single = compute_feats(test_obs_single, num_hidden=num_hidden, dim_hidden=dim_hidden)
-        test_cost_single_preu, _ = nn_forward(test_obs_single, test_torque_single, num_hidden=num_hidden, dim_hidden=dim_hidden, learn_wu=learn_wu)
+        test_cost_single_preu, _ = nn_forward(test_obs_single, test_torque_single, num_hidden=num_hidden, dim_hidden=dim_hidden, learn_wu=learn_wu,learn_feature=learn_feature)
     test_cost_single = tf.squeeze(test_cost_single_preu)
 
     sup_loss = tf.nn.l2_loss(sup_costs - sup_cost_labels)*multi_obj_supervised_wt
@@ -150,6 +157,8 @@ def construct_nn_cost_net_tf(num_hidden=3, dim_hidden=42, dim_input=27, T=100,
         'sup_loss': sup_loss,
         'ioc_loss': ioc_loss,
         'test_loss': test_cost,
+        'test_feat': test_feat,
+        'test_loss_preu': test_cost_preu,
         'test_loss_single': test_cost_single,
         'test_feat_single': test_feat_single,
     }
@@ -160,7 +169,57 @@ def construct_nn_cost_net_tf(num_hidden=3, dim_hidden=42, dim_input=27, T=100,
 
     return inputs, outputs
 
+def compute_cost_weight(net_input, num_hidden=1, dim_hidden=42, learn_feature=None):
+    len_shape = len(net_input.get_shape())
+    if  len_shape == 3:
+        batch_size, T, dinput = net_input.get_shape()
+        feat = tf.zeros([batch_size*T, dim_hidden])
+    elif len_shape == 2:
+        T, dinput = net_input.get_shape()
+        feat = tf.zeros([T, dim_hidden])
+        
+    net_input = tf.reshape(net_input, [-1, dinput.value])
+    with tf.variable_scope('cost_forward'):
+        layer = net_input # Input
+        
+        # State cost
+        s_types = learn_feature['state_types']
+        for data_type in s_types:
+            d_type = s_types[data_type]
+            
+            ee_points = layer[:,d_type['idx_start']:d_type['idx_start']+d_type['len']]
+            
+            # Cast to Tx1
+            target = tf.convert_to_tensor(np.tile(d_type['target_state'], [layer.get_shape()[0].value,1]))
+            target = tf.cast(target, tf.float32)
+            dist = (ee_points - target)**2
 
+            W = safe_get('W'+str(data_type), initializer=0.1*tf.ones((dim_hidden, dist.get_shape()[-1])), trainable=True) 
+            #W = init_weights((dim_hidden, dist.get_shape()[-1]), name='W'+str(data_type))
+            feat += 0.5 * tf.matmul(dist, W, transpose_b=True, name='mul_feat_'+str(data_type))
+            
+        # Obstacle cost
+        position = layer[:,:3]
+        test_pos_obstacle = layer[:,13:]
+        dist_obs = (position - test_pos_obstacle)**2
+        W_obs = safe_get('W_obstacle', initializer=10.0*tf.ones((dim_hidden, dist_obs.get_shape()[-1])), trainable=True)
+        d = 0.5 * tf.matmul(dist_obs, W_obs, transpose_b=True, name='mul_feat_obs')
+        
+        # Cast to Tx1
+        dsafe = tf.convert_to_tensor(np.tile(learn_feature['obs_types']['d_safe'], [layer.get_shape()[0].value,1]))
+        dsafe = tf.cast(dsafe, tf.float32)
+        
+        #W_o = safe_get('W_obs', initializer=0.1*tf.ones((dim_hidden, dim_hidden)), trainable=True)
+        #feat += tf.matmul(tf.nn.relu(dsafe - d), W_o, transpose_b=True)
+        feat += tf.nn.relu(dsafe - d)
+
+    if len_shape == 3:
+        feat = tf.reshape(feat, [batch_size.value, T.value, dim_hidden])
+    else:
+        feat = tf.reshape(feat, [-1, dim_hidden])
+
+    return feat
+    
 def compute_feats(net_input, num_hidden=1, dim_hidden=42):
     len_shape = len(net_input.get_shape())
     if  len_shape == 3:
@@ -191,16 +250,19 @@ def compute_feats(net_input, num_hidden=1, dim_hidden=42):
 
     return feat
 
-def nn_forward(net_input, u_input, num_hidden=1, dim_hidden=42, learn_wu=False):
+def nn_forward(net_input, u_input, num_hidden=1, dim_hidden=42, learn_wu=False, learn_feature=None):
     # Reshape into 2D matrix for matmuls
     u_input = tf.reshape(u_input, [-1, 1])
 
-    feat = compute_feats(net_input, num_hidden=num_hidden, dim_hidden=dim_hidden)
+    #feat = compute_feats(net_input, num_hidden=num_hidden, dim_hidden=dim_hidden)
+    feat = compute_cost_weight(net_input, num_hidden=num_hidden, dim_hidden=dim_hidden, learn_feature=learn_feature)
     feat = tf.reshape(feat, [-1, dim_hidden])
 
+    '''
+    ### DEFAULT ###
     with tf.variable_scope('cost_forward'):
-        # A = safe_get('Acost', shape=(dim_hidden, dim_hidden))
-        # b = safe_get('bcost', shape=(dim_hidden))
+        #A = safe_get('Acost', initializer=0.1*tf.ones((dim_hidden, dim_hidden)), trainable=True)
+        #b = safe_get('bcost', initializer=tf.zeros((dim_hidden)), trainable=True)
         A = init_weights((dim_hidden, dim_hidden), name='Acost')
         b = init_bias((dim_hidden), name='bcost')
         Ax = tf.matmul(feat, A, transpose_b=True)+b
@@ -222,6 +284,25 @@ def nn_forward(net_input, u_input, num_hidden=1, dim_hidden=42, learn_wu=False):
         AxAx = tf.reshape(AxAx, [-1, dim_hidden])
         u_cost = tf.reshape(u_cost, [-1, 1])
     all_costs_preu = tf.reduce_sum(AxAx, reduction_indices=[-1], keep_dims=True)
+    '''
+    with tf.variable_scope('cost_forward'):
+        # Calculate torque penalty
+        u_penalty = safe_get('wu', initializer=tf.constant(1.0), trainable=learn_wu)
+        assert_shape(u_penalty, [])
+        u_cost = u_input*u_penalty
+    
+    # Reshape result back into batches
+    input_shape = net_input.get_shape()
+    if len(input_shape) == 3:
+        batch_size, T, dinput = input_shape
+        batch_size, T = batch_size.value, T.value
+        feat = tf.reshape(feat, [batch_size, T, dim_hidden])
+        u_cost = tf.reshape(u_cost, [batch_size, T, 1])
+    else:
+        feat = tf.reshape(feat, [-1, dim_hidden])
+        u_cost = tf.reshape(u_cost, [-1, 1])
+    all_costs_preu = tf.reduce_sum(feat, reduction_indices=[-1], keep_dims=True)
+    #'''
     all_costs = all_costs_preu + u_cost
     return all_costs_preu, all_costs
 

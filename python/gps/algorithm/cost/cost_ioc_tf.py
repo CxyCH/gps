@@ -78,6 +78,33 @@ class CostIOCTF(Cost):
         ATA = weighted_array.T.dot(weighted_array)
         return ATA
 
+    def get_Weight(self):
+        with self.graph.as_default():
+            W_arr = []
+            s_types = self._hyperparams['feature']['state_types']
+            for data_type in s_types: 
+                W_arr.append(find_variable('W'+str(data_type)))
+            #A_matrix = find_variable('Acost')
+            #bias = find_variable('bcost')
+            #W_arr.append([find_variable('W_obstacle'), find_variable('W_obs')])
+            W_arr.append(find_variable('W_obstacle'))
+            
+        #Wee_eval, A, b = self.run([W_arr, A_matrix, bias])
+        #return Wee_eval, A, b
+        Wee_eval = self.run([W_arr])[0]
+        return Wee_eval
+    
+    def demo_eval(self, demoO, demoU):
+        T = demoO.shape[0]
+        l = np.zeros(T)
+        l_only = np.zeros(T)
+        tq_norm = np.sum(self._hyperparams['wu'] * (demoU ** 2), axis=1, keepdims=True)
+        ol, ol_only = self.run([self.outputs['test_loss'], self.outputs['test_loss_preu']], test_obs=demoO, test_torque_norm=tq_norm)
+
+        l[:] = np.squeeze(ol)
+        l_only[:] = np.squeeze(ol_only)
+        return l, l_only
+    
     def eval(self, sample):
         """
         Evaluate cost function and derivatives on a sample.
@@ -101,6 +128,8 @@ class CostIOCTF(Cost):
 
         tq_norm = np.sum(self._hyperparams['wu'] * (sample_u ** 2), axis=1, keepdims=True)
         l[:] = np.squeeze(self.run([self.outputs['test_loss']], test_obs=obs, test_torque_norm=tq_norm)[0])
+        #feat = self.run([self.outputs['test_feat']], test_obs=obs)[0]
+        #print "Test_feat: ", feat
 
         if self.approximate_lxx:
             lx, dfdx = self.compute_lx_dfdx(obs)
@@ -172,7 +201,7 @@ class CostIOCTF(Cost):
 
         # Pass in net parameter by protostring (could add option to input prototxt file).
         network_arch_params = self._hyperparams['network_arch_params']
-
+        network_arch_params['dim_hidden'] = self._hyperparams['dim_hidden']
         network_arch_params['dim_input'] = self._dO
         network_arch_params['demo_batch_size'] = self._hyperparams['demo_batch_size']
         if sample_batch_size is None:
@@ -186,6 +215,10 @@ class CostIOCTF(Cost):
         network_arch_params['mono_reg_weight'] = self._hyperparams['mono_reg_weight']
         network_arch_params['gp_reg_weight'] = self._hyperparams['gp_reg_weight']
         network_arch_params['learn_wu'] = self._hyperparams['learn_wu']
+        
+        #### ADDED for construct linear feature cost function
+        network_arch_params['learn_feature'] = self._hyperparams['feature']
+        
         inputs, outputs = construct_nn_cost_net_tf(**network_arch_params)
         self.outputs = outputs
 

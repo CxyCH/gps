@@ -36,6 +36,7 @@ SENSOR_DIMS = {
     MOBILE_ORIENTATION: 4,
     MOBILE_VELOCITIES_LINEAR: 3,
     MOBILE_VELOCITIES_ANGULAR: 3,
+    POSITION_NEAREST_OBSTACLE: 3,
     ACTION: 3
 }
 
@@ -71,9 +72,9 @@ agent = {
     'target_state' : np.array([3, 35, 0]),
     "world" : PointMassWorldObstacleMobile,
     'world_info': {'obstacles':[np.array([-1, 15, 4, 1])]},
-    #'render' : False,
+    'render' : False,
     'x0': [np.array([0, 5, 0, 0, 0, 0, 0,
-					0, 0, 0, 0, 0, 0])],
+					0, 0, 0, 0, 0, 0, 0, 0, 0])],
     'rk': 0,
     'dt': 0.05,
     'substeps': 1,
@@ -85,9 +86,9 @@ agent = {
     'M': 5,
     'sensor_dims': SENSOR_DIMS,
     'state_include': [MOBILE_POSITION, MOBILE_ORIENTATION, \
-				MOBILE_VELOCITIES_LINEAR, MOBILE_VELOCITIES_ANGULAR],
+				MOBILE_VELOCITIES_LINEAR, MOBILE_VELOCITIES_ANGULAR, POSITION_NEAREST_OBSTACLE],
     'obs_include': [MOBILE_POSITION, MOBILE_ORIENTATION, \
-				MOBILE_VELOCITIES_LINEAR, MOBILE_VELOCITIES_ANGULAR],
+				MOBILE_VELOCITIES_LINEAR, MOBILE_VELOCITIES_ANGULAR, POSITION_NEAREST_OBSTACLE],
 }
 
 demo_agent = {
@@ -95,9 +96,9 @@ demo_agent = {
     'target_state' : np.array([3, 35, 0]),
     "world" : PointMassWorldObstacleMobile,
     'world_info': {'obstacles':[np.array([-1, 15, 4, 1])]},
-    #'render' : False,
+    #'render' : True,
     'x0': [np.array([0, 5, 0, 0, 0, 0, 0,
-					0, 0, 0, 0, 0, 0])],
+					0, 0, 0, 0, 0, 0, 0, 0, 0])],
     'rk': 0,
     'dt': 0.05,
     'substeps': 1,
@@ -109,9 +110,9 @@ demo_agent = {
     'M': 5,
     'sensor_dims': SENSOR_DIMS,
     'state_include': [MOBILE_POSITION, MOBILE_ORIENTATION, \
-				MOBILE_VELOCITIES_LINEAR, MOBILE_VELOCITIES_ANGULAR],
+				MOBILE_VELOCITIES_LINEAR, MOBILE_VELOCITIES_ANGULAR, POSITION_NEAREST_OBSTACLE],
     'obs_include': [MOBILE_POSITION, MOBILE_ORIENTATION, \
-				MOBILE_VELOCITIES_LINEAR, MOBILE_VELOCITIES_ANGULAR],
+				MOBILE_VELOCITIES_LINEAR, MOBILE_VELOCITIES_ANGULAR, POSITION_NEAREST_OBSTACLE],
 }
 
 unlabeled_agent = {}
@@ -146,12 +147,40 @@ algorithm['init_traj_distr'] = {
 algorithm['cost'] = {
     'type': CostIOCTF,
     'wu': np.ones(SENSOR_DIMS[ACTION])*1e-3,
-    'dO': 13,
+    'dO': 16,
     'T': agent['T'],
     'iterations': 2000,
     'demo_batch_size': 5,
     'sample_batch_size': 5,
     'ioc_loss': algorithm['ioc'],
+    
+    'approximate_lxx': False,
+    'dim_hidden': 1,
+    #'dim_hidden': 42,
+    
+    'feature' : {
+        'state_types' : {
+            MOBILE_ORIENTATION:{
+                'idx_start': 3,
+                'len': 4,
+                'target_state': np.array([0., 0., 1., 0.]),
+            },
+            MOBILE_VELOCITIES_LINEAR: {
+                'idx_start': 7,
+                'len': 3,
+                'target_state': np.array([0., 5., 0.]),
+            },
+            MOBILE_VELOCITIES_ANGULAR: {
+                'idx_start': 10,
+                'len': 3,
+                'target_state': np.array([0., 0., 0.]),
+            },
+        },
+        'obs_types' : {
+                'obstacle_type' : POSITION_NEAREST_OBSTACLE,
+                'd_safe': 0.5
+        }
+    }
 }
 
 action_cost = {

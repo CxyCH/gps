@@ -399,9 +399,54 @@ class Algorithm(object):
         sampleO_arr = np.vstack((self.sample_list[i].get_obs() for i in xrange(M)))
         samples_logiw_arr = np.hstack([samples_logiw[i] for i in xrange(M)]).reshape((-1, 1))
         demos_logiw_arr = demos_logiw[0].reshape((-1, 1))
+        
+        # FOR DEBUG ----- Show current expert and trajectory samples cost:
+        n_demos = self.demoO.shape[0]
+        cost_demo  = np.zeros(n_demos)
+        cost_demo_sing  = np.zeros(n_demos)
+        
+        for i in range(n_demos):
+            co, co_only = self.cost.demo_eval(self.demoO[i], self.demoU[i])
+            cost_demo[i] = np.sum(co)
+            cost_demo_sing[i] = np.sum(co_only)  # cost on single sample
+            
+        if sampleU_arr.shape[0] == 5:
+            l_ra = 0
+            r_ra = 5
+            n_traj = 5
+        else:
+            l_ra = sampleU_arr.shape[0]-20
+            r_ra = sampleU_arr.shape[0]
+            n_traj = 20
+        
+        cost_traj  = np.zeros(n_traj)
+        cost_traj_sing = np.zeros(n_traj)
+        
+        idx = 0
+        for i in range(l_ra, r_ra):
+            co, co_only = self.cost.demo_eval(sampleO_arr[i], sampleU_arr[i])
+            cost_traj[idx] = np.sum(co)
+            cost_traj_sing[idx] = np.sum(co_only)  # cost on single sample
+            idx += 1
+        
+        #W, A, b = self.cost.get_Weight()
+        #'''
+        W = self.cost.get_Weight()
+        print 'Learned Weight: W'
+        print '\tOrientation: ', W[0]
+        print '\tVel_Linear: ', W[1]
+        print '\tVel_Angular: ', W[2]
+        print '\tObstacle: ', W[3]
+        #print '\tObstacle: ', W[3][0], W[3][1]
+        #print 'Linear term', A, b
+        #''' 
+        print 'Avg cost_demo: ', np.mean(cost_demo), np.mean(cost_demo_sing),', cost_traj: ', np.mean(cost_traj), np.mean(cost_traj_sing)
+        LOGGER.debug('Avg cost_demo: %f, cost_traj: %f', np.mean(cost_demo), np.mean(cost_traj))     
+        # ----------------------------------------------------------------
+        
+        # Update cost 
         self.cost.update(self.demoU, self.demoO, demos_logiw_arr, sampleU_arr,
                                                     sampleO_arr, samples_logiw_arr, itr=self.iteration_count)
-
     def importance_weights(self):
         """
             Estimate the importance weights for fusion distributions.

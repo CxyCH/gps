@@ -68,6 +68,11 @@ class AgentBox2D(Agent):
             noise = np.zeros((self.T, self.dU))
         tin = 0
         t_time = 0
+        
+        U_demo = np.zeros((self.T, self.dU))
+        U_demo[:30,:] = np.array([5,5,0])
+        U_demo[30:,:] = np.array([0,5,0])
+        
         for t in range(self.T):
             X_t = new_sample.get_X(t=t)
             obs_t = new_sample.get_obs(t=t)
@@ -84,6 +89,7 @@ class AgentBox2D(Agent):
             U[t, :] = np.array([lin_x, lin_y, 0])+(noise[t, :]*np.array([1.,1.,0.1]))
             print "Now: ", t
             """
+            #U[t, :] = U_demo[t,:]+(noise[t, :]*np.array([1.,1.,0.1]))
                 
             if (t+1) < self.T:
                 for _ in range(self._hyperparams['substeps']):
