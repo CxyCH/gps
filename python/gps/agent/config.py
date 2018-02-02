@@ -55,7 +55,7 @@ try:
             300.0, 0.0, 2.0, 2.0
         ]),
     }
-    
+
     AGENT_TURTLEBOT = {
         #TODO: Check is needed to change these name ?
         'trial_command_topic': 'gps_controller_trial_command',
@@ -66,6 +66,18 @@ try:
         'reset_conditions': [],  # Defines reset modes + positions for
                                  # trial and auxiliary arms.
         'frequency': 20,
+    }
+
+    AGENT_PEDSIM = {
+        'vel_command_topic': '/pedbot/control/cmd_vel',
+        'pedbot_position_topic': '/pedsim/robot_position',
+        'pedsim_agents_topic': '/pedsim/tracked_persons',
+        'max_agents': 10,  # Give this many seconds for a trial.
+        'reset_conditions': [],  # Defines reset modes + positions for
+                                 # trial and auxiliary arms.
+        'local_width': 3.0,
+        'local_height': 3.0,
+        'frequency': 25,
     }
 except ImportError as e:
     AGENT_ROS = {}

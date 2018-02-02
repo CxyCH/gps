@@ -29,8 +29,9 @@ enum SampleType {
   MOBILE_VELOCITIES_LINEAR = 22;
   MOBILE_VELOCITIES_ANGULAR = 23;
   MOBILE_RANGE_SENSOR = 24;
-  NOISE = 25;
-  TOTAL_DATA_TYPES = 26;
+  PEDSIM_AGENT = 25;
+  NOISE = 26;
+  TOTAL_DATA_TYPES = 27;
 }
 
 // Message containing the data for a single sample.
