@@ -88,7 +88,7 @@ agent = {
 algorithm = {
     'type': AlgorithmBADMM,
     'conditions': common['conditions'],
-    'iterations': 10,
+    'iterations': 20,
     'lg_step_schedule': np.array([1e-4, 1e-3, 1e-2, 1e-2]),
     'policy_dual_rate': 0.2,
     'ent_reg_schedule': np.array([1e-3, 1e-3, 1e-2, 1e-1]),
@@ -166,6 +166,11 @@ algorithm['traj_opt'] = {
 algorithm['policy_opt'] = {
     'type': PolicyOptCaffe,
     'weights_file_prefix': EXP_DIR + 'policy',
+    'iterations': 10000,
+    'network_arch_params': {
+        'n_layers': 2,
+        'dim_hidden': [20],
+    },
 }
 
 algorithm['policy_prior'] = {
@@ -177,7 +182,7 @@ algorithm['policy_prior'] = {
 
 config = {
     'iterations': algorithm['iterations'],
-    'num_samples': 10,
+    'num_samples': 20,
     'verbose_trials': 5,
     'verbose_policy_trials': 0,
     'common': common,
