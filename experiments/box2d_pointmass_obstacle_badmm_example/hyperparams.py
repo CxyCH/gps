@@ -65,7 +65,7 @@ agent = {
     'target_state' : np.array([3, 35, 0]),
     "world" : PointMassWorldObstacle,
     'world_info': world_info,
-    'render' : False,
+    'render' : True,
     'x0': [np.array([0, 5, 0, 0, 0, 0]),
            np.array([2, 3, 0, 0, 0, 0]),
            np.array([7, 3, 0, 0, 0, 0]),
@@ -88,7 +88,7 @@ agent = {
 algorithm = {
     'type': AlgorithmBADMM,
     'conditions': common['conditions'],
-    'iterations': 20,
+    'iterations': 10,
     'lg_step_schedule': np.array([1e-4, 1e-3, 1e-2, 1e-2]),
     'policy_dual_rate': 0.2,
     'ent_reg_schedule': np.array([1e-3, 1e-3, 1e-2, 1e-1]),
@@ -144,8 +144,8 @@ obstacle_cost = {
 
 algorithm['cost'] = {
     'type': CostSum,
-    'costs': [action_cost, state_cost, obstacle_cost],
-    'weights': [1.0, 1.2, 10.0],
+    'costs': [action_cost, state_cost],
+    'weights': [1.0, 1.0],
 }
 
 algorithm['dynamics'] = {
