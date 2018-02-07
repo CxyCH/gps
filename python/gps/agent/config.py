@@ -69,15 +69,16 @@ try:
     }
 
     AGENT_PEDSIM = {
-        'vel_command_topic': '/pedbot/control/cmd_vel',
+        'vel_command_topic': '/cmd_vel',
+        'reset_command_topic': '/cmd_pose',
         'pedbot_position_topic': '/pedsim/robot_position',
         'pedsim_agents_topic': '/pedsim/tracked_persons',
         'max_agents': 10,  # Give this many seconds for a trial.
-        'reset_conditions': [],  # Defines reset modes + positions for
-                                 # trial and auxiliary arms.
+        'sim_x0_state': [],
+        'sim_goal_state': [],
         'local_width': 3.0,
         'local_height': 3.0,
-        'frequency': 25,
+        'frequency': 20,
     }
 except ImportError as e:
     AGENT_ROS = {}

@@ -9,13 +9,14 @@ import tf
 import numpy as np
 import rospy
 import math
+from threading import Lock
 from gps.agent.agent import Agent
 from gps.agent.agent_utils import generate_noise, setup
 from gps.agent.config import AGENT_PEDSIM
 from gps.sample.sample import Sample
 from gps.agent.ros.control_law import ControlLaw
 
-from geometry_msgs.msg import Twist, Vector3
+from geometry_msgs.msg import Twist, Pose, Vector3
 from nav_msgs.msg import Odometry
 from pedsim_msgs.msg import TrackedPersons
 from gps.proto.gps_pb2 import MOBILE_POSITION, MOBILE_VELOCITIES_LINEAR, \
@@ -40,10 +41,11 @@ class AgentPedsim(Agent):
         if init_node:
             rospy.init_node('gps_agent_pedsim_node')
 
-        self.destination = self._hyperparams['target_state']
+        self._lock = Lock()
+        self.destination = self._hyperparams['sim_goal_state']
         self.pedestrians = []
         self.robot_position = Odometry()
-        # self.x0 = self._hyperparams['x0']
+        self.x0 = self._hyperparams['x0']
 
         self._init_pubs_and_subs()
         self._seq_id = 0  # Used for setting seq in ROS commands.
@@ -53,10 +55,12 @@ class AgentPedsim(Agent):
 
     def _init_pubs_and_subs(self):
         self.pub_vel = rospy.Publisher(self._hyperparams['vel_command_topic'], Twist, queue_size=10)
+        self.pub_reset = rospy.Publisher(self._hyperparams['reset_command_topic'], Pose, queue_size=10)
         rospy.Subscriber(self._hyperparams['pedsim_agents_topic'], TrackedPersons, self._pedestrian_listener)
         rospy.Subscriber(self._hyperparams['pedbot_position_topic'], Odometry, self._odom_listener)
 
     def _pedestrian_listener(self, msg):
+        self._lock.acquire()
         self.pedestrians = []
 
         r = max(self._hyperparams['local_width'], self._hyperparams['local_height'])
@@ -64,6 +68,8 @@ class AgentPedsim(Agent):
                         self.robot_position.pose.pose.position.y]
 
         pedestrians = msg.tracks
+
+        # Only get Local pedestrian
         for i in range(len(pedestrians)):
             ped_position = [pedestrians[i].pose.pose.position.x,
                             pedestrians[i].pose.pose.position.y]
@@ -74,8 +80,12 @@ class AgentPedsim(Agent):
             if (dist <= r):
                 self.pedestrians.append(pedestrians[i])
 
+        self._lock.release()
+
     def _odom_listener(self, msg):
+        self._lock.acquire()
         self.robot_position = msg
+        self._lock.release()
 
     def _get_observation(self, condition):
         # Maximum agent
@@ -83,6 +93,7 @@ class AgentPedsim(Agent):
         agents = np.ones((max_agents,3)) * 100000
 
         # Process robot position
+        self._lock.acquire()
         (roll, pitch, yaw) = tf.transformations.euler_from_quaternion(
             [self.robot_position.pose.pose.orientation.x,
             self.robot_position.pose.pose.orientation.y,
@@ -93,14 +104,15 @@ class AgentPedsim(Agent):
             self.robot_position.pose.pose.position.y,
             yaw])
 
-        robot_state = ControlLaw.convert_to_egopolar(robot_position, self.destination)
+        robot_state = robot_position
+        # robot_state = ControlLaw.convert_to_egopolar(robot_position, self.destination[condition])
         robot_linear = np.array([self.robot_position.twist.twist.linear.x,
                                 self.robot_position.twist.twist.linear.y])
         robot_angular = np.array([self.robot_position.twist.twist.angular.z])
 
         # Process pedestrians & compute the observations
         for i in range(len(self.pedestrians)):
-            if i > max_agents-1: break
+            if i > max_agents - 1: break
 
             (roll, pitch, yaw) = tf.transformations.euler_from_quaternion(
                 [self.pedestrians[i].pose.pose.orientation.x,
@@ -113,8 +125,10 @@ class AgentPedsim(Agent):
                             yaw])
 
             agents[i] = ControlLaw.convert_to_egopolar(robot_position, pedestrian)
+        self._lock.release()
 
         # This retrieves the state of the pedsim
+        print "State ", robot_state
         state = {MOBILE_POSITION: robot_state,
                  MOBILE_VELOCITIES_LINEAR: robot_linear,
                  MOBILE_VELOCITIES_ANGULAR: robot_angular,
@@ -134,7 +148,17 @@ class AgentPedsim(Agent):
         """
         # TODO: Change queue instead of changing the position
         #       (do not use deterministic reset)
-        pass
+
+        # Deterministic reset for robot (not environment)
+        x0 = self._hyperparams['sim_x0_state'][condition]
+        quaternion = tf.transformations.quaternion_from_euler(0, 0, x0[2])
+
+        pose = Pose()
+        pose.position.x = x0[0]
+        pose.position.y = x0[1]
+        pose.orientation.w = quaternion[3]
+
+        self.pub_reset.publish(pose)
 
     def sample(self, policy, condition, reset=True, verbose=True, save=True, noisy=True):
         """
@@ -162,7 +186,7 @@ class AgentPedsim(Agent):
         else:
             noise = np.zeros((self.T, self.dU))
         # TODO: Experiment on the noise
-        noise = noise*0.01
+        # noise = noise*0.01
 
         # Execute trial.
         frequency = self._hyperparams['frequency']
@@ -172,7 +196,7 @@ class AgentPedsim(Agent):
         t = -1
         twist = Twist()
 
-        while True:
+        while not rospy.is_shutdown():
             # Check if this is a controller step based on the current controller frequency.
             if controller_counter >= policy_rate:
                 controller_counter = 0
@@ -189,14 +213,10 @@ class AgentPedsim(Agent):
                 # Get controller
                 X_t = new_sample.get_X(t=t)
                 obs_t = new_sample.get_obs(t=t)
-                U[t, :] = [t*0.01, 0., 0.1]
-                # U[t, :] = policy.act(X_t, obs_t, t, noise[t, :])
+                U[t, :] = policy.act(X_t, obs_t, t, noise[t, :])
 
             twist.linear.x = U[t, 0]
-            twist.linear.y = U[t, 1]
-            twist.angular.z = U[t, 2]
-
-            print controller_counter, t, U[t,:]
+            twist.angular.z = U[t, 1]
 
             self.pub_vel.publish(twist)
 
@@ -206,7 +226,6 @@ class AgentPedsim(Agent):
         # Stop
         # Move it to reset may be
         twist.linear.x = 0.
-        twist.linear.y = 0.
         twist.angular.z = 0.
         self.pub_vel.publish(twist)
 
