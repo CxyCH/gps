@@ -14,7 +14,7 @@ from gps.algorithm.cost.cost_sum import CostSum
 from gps.algorithm.dynamics.dynamics_lr_prior import DynamicsLRPrior
 from gps.algorithm.dynamics.dynamics_prior_gmm import DynamicsPriorGMM
 from gps.algorithm.traj_opt.traj_opt_lqr_python import TrajOptLQRPython
-from gps.algorithm.policy.lin_gauss_init import init_pd
+from gps.algorithm.policy.lin_gauss_init import init_pd, init_demo_lg
 from gps.proto.gps_pb2 import MOBILE_POSITION, MOBILE_ORIENTATION, \
 				MOBILE_VELOCITIES_LINEAR, MOBILE_VELOCITIES_ANGULAR, ACTION, \
 				POSITION_NEAREST_OBSTACLE, PEDSIM_AGENT
@@ -48,7 +48,7 @@ if not os.path.exists(common['data_files_dir']):
 agent = {
     'type': AgentPedsim,
 	'sim_x0_state' : [np.array([4., 4., 0.])],
-    'sim_goal_state' : [np.array([35., 2., 0.])],
+    'sim_goal_state' : [np.array([30., 2., 0.])],
     'render' : False,
     'x0': [np.array([
 		0., 0., 0.,
@@ -76,12 +76,22 @@ algorithm = {
 
 algorithm['init_traj_distr'] = {
     'type': init_pd,
-    'init_var': 5.0,
+    'init_var': 1.0,
     'pos_gains': 0.0,
     'dQ': SENSOR_DIMS[ACTION],
     'dt': agent['dt'],
     'T': agent['T'],
 }
+
+# algorithm['init_traj_distr'] = {
+#     'type': init_demo_lg,
+# 	'iteration': 5,
+# 	'data_files_dir': common['data_files_dir'],
+# 	'condition': [i for i in range(common['conditions'])],
+# 	'dQ': SENSOR_DIMS[ACTION],
+#     'dt': agent['dt'],
+#     'T': agent['T'],
+# }
 
 action_cost = {
     'type': CostAction,
@@ -96,15 +106,15 @@ state_cost = {
 			'target_state': np.array([35.0, 2.0, 0.0]),
 		},
 		# MOBILE_POSITION: {
-		# 	'wp': np.array([0.05, 0.05, 0.05]),
+		# 	'wp': np.array([0.5, 10.0, 10.0]),
 		# 	'target_state': np.array([0.0, 0.0, 0.0]),
 		# },
         MOBILE_VELOCITIES_LINEAR: {
-            'wp': np.ones(SENSOR_DIMS[MOBILE_VELOCITIES_LINEAR])*10.0,
+            'wp': np.ones(SENSOR_DIMS[MOBILE_VELOCITIES_LINEAR])*30.0,
             'target_state': np.array([2.0, 0.]),
         },
         MOBILE_VELOCITIES_ANGULAR: {
-            'wp': np.ones(SENSOR_DIMS[MOBILE_VELOCITIES_ANGULAR])*10.0,
+            'wp': np.ones(SENSOR_DIMS[MOBILE_VELOCITIES_ANGULAR])*100.0,
             'target_state': np.array([0.]),
         },
     },
@@ -134,7 +144,7 @@ algorithm['traj_opt'] = {
 algorithm['policy_opt'] = {}
 
 config = {
-    'iterations': 10,
+    'iterations': 15,
     'num_samples': 5,
     'common': common,
     'verbose_trials': 0,

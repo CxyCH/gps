@@ -1,11 +1,12 @@
 """ Initializations for linear Gaussian controllers. """
 import copy
+import pickle
 import numpy as np
 import scipy as sp
 
 from gps.algorithm.dynamics.dynamics_utils import guess_dynamics
 from gps.algorithm.policy.lin_gauss_policy import LinearGaussianPolicy
-from gps.algorithm.policy.config import INIT_LG_PD, INIT_LG_LQR
+from gps.algorithm.policy.config import INIT_LG_PD, INIT_LG_LQR, INIT_DEMO_LG
 
 
 def init_lqr(hyperparams):
@@ -140,3 +141,20 @@ def init_pd(hyperparams):
     invPSig = (1.0 / config['init_var']) * np.tile(np.eye(dU), [T, 1, 1])
 
     return LinearGaussianPolicy(K, k, PSig, cholPSig, invPSig)
+
+
+def init_demo_lg(hyperparams):
+    config = copy.deepcopy(INIT_DEMO_LG)
+    config.update(hyperparams)
+
+    # Load algorithm
+    algorithm_files = config['data_files_dir'] + 'init/algorithm_itr_%02d.pkl' % config['iteration']
+    with open(algorithm_files, 'r') as f:
+        algorithm = pickle.load(f)
+
+    cond = config['condition']
+    lg_policy = copy.copy(algorithm.cur[cond].traj_distr)
+    # Increase controller variance.
+    lg_policy.chol_pol_covar *= config['var_mult']
+
+    return lg_policy

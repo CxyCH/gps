@@ -21,6 +21,13 @@ INIT_LG_LQR = {
     'init_gains': [],  # dU vector of gains, default ones.
 }
 
+INIT_DEMO_LG = {
+    'iteration': 5,
+    'data_files_dir': '',
+    'var_mult': 1.0,
+    'condition': [i for i in range(1)], # replace 1 by the number of condition
+}
+
 # PolicyPrior
 POLICY_PRIOR = {
     'strength': 1e-4,
