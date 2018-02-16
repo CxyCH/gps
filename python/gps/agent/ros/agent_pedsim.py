@@ -68,17 +68,25 @@ class AgentPedsim(Agent):
                         self.robot_position.pose.pose.position.y]
 
         pedestrians = msg.tracks
+        unsort_dist = []
 
         # Only get Local pedestrian
         for i in range(len(pedestrians)):
             ped_position = [pedestrians[i].pose.pose.position.x,
                             pedestrians[i].pose.pose.position.y]
 
-            dist = math.hypot(robot_position[0] - ped_position[0],
+            dist =  math.hypot(robot_position[0] - ped_position[0],
                             robot_position[1] - ped_position[1])
-
             if (dist <= r):
-                self.pedestrians.append(pedestrians[i])
+                unsort_dist.append([dist, i])
+
+        def getKey(item):
+            return item[0]
+
+        sort_dist = sorted(unsort_dist, key=getKey)
+
+        for i in range(len(sort_dist)):
+            self.pedestrians.append(pedestrians[sort_dist[i][1]])
 
         self._lock.release()
 
@@ -104,8 +112,8 @@ class AgentPedsim(Agent):
             self.robot_position.pose.pose.position.y,
             yaw])
 
-        robot_state = robot_position
-        # robot_state = ControlLaw.convert_to_egopolar(robot_position, self.destination[condition])
+        # robot_state = robot_position
+        robot_state = ControlLaw.convert_to_egopolar(robot_position, self.destination[condition])
         robot_linear = np.array([self.robot_position.twist.twist.linear.x,
                                 self.robot_position.twist.twist.linear.y])
         robot_angular = np.array([self.robot_position.twist.twist.angular.z])
