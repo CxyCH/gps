@@ -2,7 +2,7 @@
 import numpy as np
 
 from gps.algorithm.cost.cost_utils import RAMP_CONSTANT, evallogl2term
-
+from gps.proto.gps_pb2 import PEDSIM_AGENT, END_EFFECTOR_POINTS, POSITION_NEAREST_OBSTACLE
 
 # CostFK
 COST_FK = {
@@ -41,8 +41,21 @@ COST_OBSTACLE = {
     'alpha': 1e-2,
     'wp_final_multiplier': 1.0,  # Weight multiplier on final time step.
     'wp': None,
-    'obstacle_type': None,
-    'position_type': None,
+    'obstacle_type': POSITION_NEAREST_OBSTACLE,
+    'position_type': END_EFFECTOR_POINTS,
+    'd_safe': 0.4,
+}
+
+# CostObstacle
+COST_PEDESTRIAN = {
+    'ramp_option': RAMP_CONSTANT,  # How target cost ramps over time.
+    'l1': 0.0,
+    'l2': 1.0,
+    'alpha': 1e-2,
+    'wp_final_multiplier': 1.0,  # Weight multiplier on final time step.
+    'wp': None,
+    'pedestrian_type': PEDSIM_AGENT,
+    'max_agents': 10,
     'd_safe': 0.4,
 }
 

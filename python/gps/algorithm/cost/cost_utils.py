@@ -28,6 +28,29 @@ def get_ramp_multiplier(ramp_option, T, wp_final_multiplier=1.0):
     wpm[-1] *= wp_final_multiplier
     return wpm
 
+def evalhinglenonsqrtl2loss(wp, d, dsafe, l2):
+    """
+    loss = max(0, dsafe - 0.5 * l2 * d)
+    Args:
+        wp: T, matrix with weights for each dimension and time step.
+        d: T x Dx states to evaluate norm on.
+        dsafe: is safe distance
+    """
+    # Get trajectory length.
+    T, dX = d.shape
+
+    sqrtwp = np.sqrt(wp)
+    dsclsq = d * sqrtwp
+    dscl = d * wp
+
+    # loss
+    l = np.sum(np.maximum(0, (dsafe - d) * wp), axis=1).reshape(T,)
+    lx = np.zeros((T, dX))
+    lxx = np.zeros((T, dX, dX))
+
+    return l, lx, lxx
+
+
 def evalhinglel2loss(wp, d, dsafe, l2):
     """
     loss = max(0, dsafe - 0.5 * l2 * d^2)
