@@ -1,7 +1,7 @@
 """ Default configuration and hyperparameter values for algorithms. """
 
 import numpy as np
-
+from gps.proto.gps_pb2 import PEDSIM_EXPERT_POLICY
 
 # Algorithm
 ALG = {
@@ -74,6 +74,15 @@ ALG_PIGPS = {
     'policy_sample_mode': 'add',    
     # Dynamics fitting is not required for PIGPS.
     'fit_dynamics': False,
+}
+
+# AlgorithmPLATO
+ALG_PLATO = {
+    'init_pol_wt': 0.01,
+    'policy_sample_mode': 'add',
+    # Dynamics fitting is not required for PLATO.
+    'fit_dynamics': False,
+    'expert_type': PEDSIM_EXPERT_POLICY,
 }
 
 

@@ -71,7 +71,9 @@ try:
     AGENT_PEDSIM = {
         'vel_command_topic': '/cmd_vel',
         'reset_command_topic': '/cmd_pose',
+        'robot_mode_topic': '/robot_mode',
         'pedbot_position_topic': '/pedsim/robot_position',
+        'expert_position_topic': '/pedsim/expert_position',
         'pedsim_agents_topic': '/pedsim/tracked_persons',
         'max_agents': 10,  # Give this many seconds for a trial.
         'sim_x0_state': [],

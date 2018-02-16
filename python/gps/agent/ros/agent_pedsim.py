@@ -20,7 +20,7 @@ from geometry_msgs.msg import Twist, Pose, Vector3
 from nav_msgs.msg import Odometry
 from pedsim_msgs.msg import TrackedPersons
 from gps.proto.gps_pb2 import MOBILE_POSITION, MOBILE_VELOCITIES_LINEAR, \
-                    MOBILE_VELOCITIES_ANGULAR, PEDSIM_AGENT, ACTION
+                    MOBILE_VELOCITIES_ANGULAR, PEDSIM_AGENT, PEDSIM_EXPERT_POLICY, ACTION
 
 
 class AgentPedsim(Agent):
@@ -45,6 +45,7 @@ class AgentPedsim(Agent):
         self.destination = self._hyperparams['sim_goal_state']
         self.pedestrians = []
         self.robot_position = Odometry()
+        self.expert_position = Odometry()
         self.x0 = self._hyperparams['x0']
 
         self._init_pubs_and_subs()
@@ -58,6 +59,7 @@ class AgentPedsim(Agent):
         self.pub_reset = rospy.Publisher(self._hyperparams['reset_command_topic'], Pose, queue_size=10)
         rospy.Subscriber(self._hyperparams['pedsim_agents_topic'], TrackedPersons, self._pedestrian_listener)
         rospy.Subscriber(self._hyperparams['pedbot_position_topic'], Odometry, self._odom_listener)
+        rospy.Subscriber(self._hyperparams['expert_position_topic'], Odometry, self._expert_listener)
 
     def _pedestrian_listener(self, msg):
         self._lock.acquire()
@@ -93,6 +95,11 @@ class AgentPedsim(Agent):
     def _odom_listener(self, msg):
         self._lock.acquire()
         self.robot_position = msg
+        self._lock.release()
+
+    def _expert_listener(self, msg):
+        self._lock.acquire()
+        self.expert_position = msg
         self._lock.release()
 
     def _get_observation(self, condition):
@@ -133,15 +140,20 @@ class AgentPedsim(Agent):
                             yaw])
 
             agents[i] = ControlLaw.convert_to_egopolar(robot_position, pedestrian)
+
+        # Expert data
+        # expert_policy = np.array([self.expert_position.twist.twist.linear.x,
+        #                         self.expert_position.twist.twist.angular.z])
+        expert_policy = np.array([self.expert_position.twist.twist.linear.x,
+                                self.expert_position.twist.twist.linear.y])
         self._lock.release()
 
         # This retrieves the state of the pedsim
-        print "State ", robot_state
         state = {MOBILE_POSITION: robot_state,
                  MOBILE_VELOCITIES_LINEAR: robot_linear,
                  MOBILE_VELOCITIES_ANGULAR: robot_angular,
-                #  PEDSIM_AGENT: agents}
-                 PEDSIM_AGENT: agents.reshape((max_agents*3,))}
+                 PEDSIM_AGENT: agents.reshape((max_agents*3,)),
+                 PEDSIM_EXPERT_POLICY: expert_policy}
         return state
 
     def _get_next_seq_id(self):
@@ -224,7 +236,8 @@ class AgentPedsim(Agent):
                 U[t, :] = policy.act(X_t, obs_t, t, noise[t, :])
 
             twist.linear.x = U[t, 0]
-            twist.angular.z = U[t, 1]
+            twist.linear.y = U[t, 1]
+            # twist.angular.z = U[t, 1]
 
             self.pub_vel.publish(twist)
 
@@ -234,6 +247,7 @@ class AgentPedsim(Agent):
         # Stop
         # Move it to reset may be
         twist.linear.x = 0.
+        twist.linear.y = 0.
         twist.angular.z = 0.
         self.pub_vel.publish(twist)
 
