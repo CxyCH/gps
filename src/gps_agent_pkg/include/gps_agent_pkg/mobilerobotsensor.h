@@ -23,6 +23,7 @@
 #include <geometry_msgs/Vector3.h>
 #include <geometry_msgs/Quaternion.h>
 #include <sensor_msgs/LaserScan.h>
+#include <visualization_msgs/Marker.h>
 #include <vector>
 #include "flann/flann.hpp"
 
@@ -78,6 +79,7 @@ private:
 	// Subscribers
 	ros::Subscriber subscriber_;
 	ros::Subscriber range_subscriber_;
+	ros::Publisher nearest_obs_pub_;
 	std::string topic_name_;
 	std::string range_topic_name_;
 
@@ -86,6 +88,8 @@ private:
 
 	tf::TransformListener* tf_;
 	costmap_2d::Costmap2DROS* costmap_ros_;
+	boost::mutex odom_mutex_, range_mutex_;
+	geometry_msgs::Pose cur_pose_;
 
 	// Building obstacle tree
 	boost::mutex cost_map_mutex_;
@@ -97,7 +101,6 @@ private:
 	// Auxiliary function
 	double mod(double x, double y);
 	double distance(double pose_x, double pose_y, double obx, double oby);
-	geometry_msgs::Pose getCurrentRobotPose();
 	void updateObstacleTree(costmap_2d::Costmap2D *costmap);
 	MinDistResult find_nearest_neighbor(Point queryPoint);
 	double min_distance_to_obstacle(geometry_msgs::Pose local_current_pose, double *heading, Point *obs_pose);

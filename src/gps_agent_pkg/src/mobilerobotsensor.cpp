@@ -63,6 +63,7 @@ MobileRobotSensor::MobileRobotSensor(ros::NodeHandle& n, RobotPlugin *plugin): S
 
 	subscriber_ = n.subscribe(topic_name_, 1, &MobileRobotSensor::update_data_vector, this);
 	range_subscriber_ = n.subscribe(range_topic_name_, 1, &MobileRobotSensor::update_range_data, this);
+	nearest_obs_pub_ = n.advertise<visualization_msgs::Marker>("nearest_obstacle", 10);
 
 	// Set time.
 	previous_pose_time_ = ros::Time(0.0); // This ignores the velocities on the first step.
@@ -90,13 +91,40 @@ void MobileRobotSensor::update(RobotPlugin *plugin, ros::Time current_time, bool
 		// Find the nearest obstacle, default is -1000.0, -1000.0
 		double obstacle_heading = 0.0;
 		Point obs_pose(-1000.0,-1000.0);
-		geometry_msgs::Pose cur_pose = getCurrentRobotPose();
-		double minDist = min_distance_to_obstacle(cur_pose, &obstacle_heading, &obs_pose);
+		double minDist;
+
+		{
+			boost::mutex::scoped_lock lock(odom_mutex_);
+			minDist = min_distance_to_obstacle(cur_pose_, &obstacle_heading, &obs_pose);
+		}
+
 		nearest_obstacle_[0] = obs_pose.a;
 		nearest_obstacle_[1] = obs_pose.b;
 		nearest_obstacle_[2] = 0.0;
 
 		ROS_INFO("Min distance: %f, Pose: %f, %f", minDist, obs_pose.a, obs_pose.b);
+		visualization_msgs::Marker nearest_points;
+		nearest_points.header.frame_id = "odom";
+		nearest_points.header.stamp = ros::Time::now();
+		nearest_points.ns = "nearest_points";
+		nearest_points.action = visualization_msgs::Marker::MODIFY;
+		nearest_points.pose.orientation.w = 1;
+		nearest_points.id = 0;
+		nearest_points.type = visualization_msgs::Marker::POINTS;
+		nearest_points.scale.x = 0.2;
+		nearest_points.scale.y = 0.2;
+
+		// Points are green
+		nearest_points.color.g = 1.0f;
+		nearest_points.color.a = 1.0;
+
+		geometry_msgs::Point p;
+		p.x = obs_pose.a;
+		p.y = obs_pose.b;
+		p.z = 1;
+
+		nearest_points.points.push_back(p);
+		nearest_obs_pub_.publish(nearest_points);
 
 		previous_pose_time_ = current_time;
 	}
@@ -140,66 +168,77 @@ void MobileRobotSensor::set_sample_data_format(boost::scoped_ptr<Sample>& sample
 // Set data on the provided sample.
 void MobileRobotSensor::set_sample_data(boost::scoped_ptr<Sample>& sample, int t)
 {
-	// Set position.
-	sample->set_data_vector(t,gps::MOBILE_POSITION,position_.data(),position_.size(),SampleDataFormatEigenVector);
+	{
+		boost::mutex::scoped_lock lock(odom_mutex_);
 
-	// Set orientation.
-	sample->set_data_vector(t,gps::MOBILE_ORIENTATION,orientation_.data(),orientation_.size(),SampleDataFormatEigenVector);
+		// Set position.
+		sample->set_data_vector(t,gps::MOBILE_POSITION,position_.data(),position_.size(),SampleDataFormatEigenVector);
+
+		// Set orientation.
+		sample->set_data_vector(t,gps::MOBILE_ORIENTATION,orientation_.data(),orientation_.size(),SampleDataFormatEigenVector);
+
+		// Set linear velocities.
+		sample->set_data_vector(t,gps::MOBILE_VELOCITIES_LINEAR,linear_velocities_.data(),linear_velocities_.size(),SampleDataFormatEigenVector);
+
+		// Set angular velocities.
+		sample->set_data_vector(t,gps::MOBILE_VELOCITIES_ANGULAR,angular_velocities_.data(),angular_velocities_.size(),SampleDataFormatEigenVector);
+	}
 
 	// Set nearest obstacle.
 	sample->set_data_vector(t,gps::POSITION_NEAREST_OBSTACLE,nearest_obstacle_.data(),nearest_obstacle_.size(),SampleDataFormatEigenVector);
 
-	// Set linear velocities.
-	sample->set_data_vector(t,gps::MOBILE_VELOCITIES_LINEAR,linear_velocities_.data(),linear_velocities_.size(),SampleDataFormatEigenVector);
 
-	// Set angular velocities.
-	sample->set_data_vector(t,gps::MOBILE_VELOCITIES_ANGULAR,angular_velocities_.data(),angular_velocities_.size(),SampleDataFormatEigenVector);
-
-	// Set range data.
-	sample->set_data_vector(t,gps::MOBILE_RANGE_SENSOR,range_data_.data(),range_data_.size(),SampleDataFormatEigenVector);
-}
-
-geometry_msgs::Pose MobileRobotSensor::getCurrentRobotPose()
-{
-	geometry_msgs::Pose pose;
-	pose.position.x = position_[0];
-	pose.position.y = position_[1];
-	pose.position.z = position_[2];
-
-	pose.orientation.x = orientation_[0];
-	pose.orientation.y = orientation_[1];
-	pose.orientation.z = orientation_[2];
-	pose.orientation.w = orientation_[3];
-
-	return pose;
+	{
+		boost::mutex::scoped_lock lock(range_mutex_);
+		// Set range data.
+		sample->set_data_vector(t,gps::MOBILE_RANGE_SENSOR,range_data_.data(),range_data_.size(),SampleDataFormatEigenVector);
+	}
 }
 
 void MobileRobotSensor::update_data_vector(const nav_msgs::Odometry::ConstPtr& msg)
 {
-	// Update current robot pose and velocites
-	position_[0] = msg->pose.pose.position.x;
-	position_[1] = msg->pose.pose.position.y;
-	position_[2] = msg->pose.pose.position.z;
+	{
+		boost::mutex::scoped_lock lock(odom_mutex_);
 
-	orientation_[0] = msg->pose.pose.orientation.x;
-	orientation_[1] = msg->pose.pose.orientation.y;
-	orientation_[2] = msg->pose.pose.orientation.z;
-	orientation_[3] = msg->pose.pose.orientation.w;
+		// Update current robot pose and velocites
+		position_[0] = msg->pose.pose.position.x;
+		position_[1] = msg->pose.pose.position.y;
+		position_[2] = msg->pose.pose.position.z;
 
-	linear_velocities_[0] = msg->twist.twist.linear.x;
-	linear_velocities_[1] = msg->twist.twist.linear.y;
-	linear_velocities_[2] = msg->twist.twist.linear.z;
+		orientation_[0] = msg->pose.pose.orientation.x;
+		orientation_[1] = msg->pose.pose.orientation.y;
+		orientation_[2] = msg->pose.pose.orientation.z;
+		orientation_[3] = msg->pose.pose.orientation.w;
 
-	angular_velocities_[0] = msg->twist.twist.angular.x;
-	angular_velocities_[1] = msg->twist.twist.angular.y;
-	angular_velocities_[2] = msg->twist.twist.angular.z;
+		linear_velocities_[0] = msg->twist.twist.linear.x;
+		linear_velocities_[1] = msg->twist.twist.linear.y;
+		linear_velocities_[2] = msg->twist.twist.linear.z;
+
+		angular_velocities_[0] = msg->twist.twist.angular.x;
+		angular_velocities_[1] = msg->twist.twist.angular.y;
+		angular_velocities_[2] = msg->twist.twist.angular.z;
+
+		cur_pose_.position.x = position_[0];
+		cur_pose_.position.y = position_[1];
+		cur_pose_.position.z = position_[2];
+
+		cur_pose_.orientation.x = orientation_[0];
+		cur_pose_.orientation.y = orientation_[1];
+		cur_pose_.orientation.z = orientation_[2];
+		cur_pose_.orientation.w = orientation_[3];
+	}
 }
 
 void MobileRobotSensor::update_range_data(const sensor_msgs::LaserScan::ConstPtr& msg)
 {
-	for(int i=0; i < range_data_.size(); i++)
 	{
-		range_data_[i] = msg->ranges[i];
+		boost::mutex::scoped_lock lock(range_mutex_);
+		for(int i=0; i < range_data_.size(); i++)
+		{
+			range_data_[i] = msg->ranges[i];
+		}
+	}
+}
 	}
 }
 

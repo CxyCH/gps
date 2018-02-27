@@ -7,7 +7,7 @@ Panels:
         - /TF1/Frames1
         - /TF1/Tree1
       Splitter Ratio: 0.5
-    Tree Height: 218
+    Tree Height: 222
   - Class: rviz/Selection
     Name: Selection
   - Class: rviz/Tool Properties
@@ -317,6 +317,7 @@ Visualization Manager:
         LaserScan (kinect): true
         MPC Plan: true
         Map: true
+        Nearest obstacle: true
         Odometry: true
         Offline Plan: true
         RobotModel: true
@@ -338,6 +339,14 @@ Visualization Manager:
       Name: MPC Plan
       Topic: /mpc_plan
       Unreliable: false
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /nearest_obstacle
+      Name: Nearest obstacle
+      Namespaces:
+        nearest_points: true
+      Queue Size: 100
+      Value: true
       Value: true
   Enabled: true
   Global Options:
@@ -358,23 +367,20 @@ Visualization Manager:
   Value: true
   Views:
     Current:
-      Class: rviz/Orbit
-      Distance: 10.4563
+      Angle: 0
+      Class: rviz/TopDownOrtho
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.06
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
-      Focal Point:
-        X: 3.81662
-        Y: 0.61629
-        Z: -0.244908
       Name: Current View
       Near Clip Distance: 0.01
-      Pitch: 1.5498
+      Scale: 33.7909
       Target Frame: base_link
-      Value: Orbit (rviz)
-      Yaw: 4.72321
+      Value: TopDownOrtho (rviz)
+      X: 1.53197
+      Y: 0.599903
     Saved: ~
 Window Geometry:
   Camera:
