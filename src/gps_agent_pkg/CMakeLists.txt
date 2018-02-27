@@ -54,11 +54,13 @@ set(DDP_FILES src/robotplugin.cpp
               src/trialcontroller.cpp
               src/encodersensor.cpp
               src/encoderfilter.cpp
-			  src/rostopicsensor.cpp
+			        src/rostopicsensor.cpp
               src/util.cpp
               src/mobilerobot.cpp
+              src/mpepcmobilerobot.cpp
               src/mobilerobotsensor.cpp
               src/navcontroller.cpp
+              src/mpepccontrollaw.cpp
 )
 
 # Include Caffe
@@ -105,8 +107,12 @@ rosbuild_add_library(gps_agent_lib ${DDP_FILES})
 # ADDED BY THOBOTICS
 rosbuild_add_executable(mobilerobot_node src/mobilerobot_node.cpp)
 target_link_libraries(mobilerobot_node gps_agent_lib)
-#target_link_libraries(mobilerobot_node ${catkin_LIBRARIES})
-#add_dependencies(mobilerobot_test beginner_tutorials_generate_messages_cpp)
+rosbuild_add_executable(mpepcmobilerobot_node src/mpepcmobilerobot_node.cpp)
+target_link_libraries(mpepcmobilerobot_node gps_agent_lib)
+rosbuild_add_executable(globalplanner_node src/globalplanner_node.cpp)
+target_link_libraries(globalplanner_node gps_agent_lib)
+rosbuild_add_executable(controllaw_node src/controllaw_node.cpp)
+target_link_libraries(controllaw_node gps_agent_lib)
 
 # Include Caffe in controller
 if (USE_CAFFE)

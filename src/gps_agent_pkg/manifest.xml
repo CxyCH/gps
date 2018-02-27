@@ -7,6 +7,7 @@
   <review status="unreviewed" notes=""/>
   <depend package="std_msgs"/>
   <depend package="sensor_msgs"/>
+  <depend package="visualization_msgs"/>
   <depend package="pr2_controller_interface"/>
   <depend package="pr2_mechanism_model"/>
   <depend package="pluginlib"/>
@@ -20,6 +21,7 @@
   <depend package="geometry_msgs"/>
   <depend package="tf"/>
   <depend package="costmap_2d"/>
+  <depend package="global_planner"/>
   <depend package="nav_msgs"/>
 
   <rosdep name="eigen" />

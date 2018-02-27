@@ -50,7 +50,7 @@ public:
     void starting();
     // This is called by the controller manager before stopping the controller.
     void stopping();
-private:
+protected:
     // Counter for keeping track of controller steps.
 	int controller_counter_;
 	// Length of controller steps in ms.

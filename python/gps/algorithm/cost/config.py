@@ -46,6 +46,18 @@ COST_OBSTACLE = {
     'd_safe': 0.4,
 }
 
+COST_MPEPC = {
+    'ramp_option': RAMP_CONSTANT,  # How target cost ramps over time.
+    'wp_final_multiplier': 1.0,  # Weight multiplier on final time step.
+    'wp': None,
+    'wp_col': None,
+    'wp_nf': None,
+    'sigma_square': 0.1,
+    'obstacle_type': None,
+    'position_type': None,
+    'potential_type': None,
+}
+
 # CostBinaryRegion
 COST_BINARY_REGION = {
     'ramp_option': RAMP_CONSTANT,  # How target cost ramps over time.

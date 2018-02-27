@@ -117,8 +117,8 @@ class AgentTurtlebot(Agent):
             noise = generate_noise(self.T, self.dU, self._hyperparams)
         else:
             noise = np.zeros((self.T, self.dU))
-        noise = noise*0.01
-        
+        # noise = noise*0.01
+
         # Execute trial.
         trial_command = TrialCommand()
         trial_command.id = self._get_next_seq_id()

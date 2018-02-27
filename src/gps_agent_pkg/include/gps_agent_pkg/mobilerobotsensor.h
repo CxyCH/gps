@@ -76,12 +76,17 @@ private:
 	Eigen::VectorXd nearest_obstacle_;
 	// Array of range sensor data
 	Eigen::VectorXd range_data_;
+	// Current global potential point
+	Eigen::VectorXd potential_score_;
 	// Subscribers
 	ros::Subscriber subscriber_;
 	ros::Subscriber range_subscriber_;
+	ros::Subscriber navfn_subscriber_;
+	// Publishers
 	ros::Publisher nearest_obs_pub_;
 	std::string topic_name_;
 	std::string range_topic_name_;
+	std::string potential_topic_name_;
 
 	// Time from last update when the previous pose were recorded (necessary to compute velocities).
 	ros::Time previous_pose_time_;
@@ -98,16 +103,25 @@ private:
 	flann::Index<flann::L2<float> > * obs_tree;
 	flann::Matrix<float> * data;
 
+	// Global Navigation Function
+	boost::mutex global_pot_mutex_;
+	std::vector<int8_t> global_potarr_;
+	unsigned int global_width_ = 0, global_height_ = 0;
+	double origin_x_ = 0, origin_y_ = 0, resolution_ = 0;
+
 	// Auxiliary function
 	double mod(double x, double y);
 	double distance(double pose_x, double pose_y, double obx, double oby);
 	void updateObstacleTree(costmap_2d::Costmap2D *costmap);
+	geometry_msgs::Point transformOdomToMap(geometry_msgs::Pose local_pose);
+	double getGlobalPointPotential(geometry_msgs::Pose local_pose);
 	MinDistResult find_nearest_neighbor(Point queryPoint);
 	double min_distance_to_obstacle(geometry_msgs::Pose local_current_pose, double *heading, Point *obs_pose);
 
 	// Subscriber topic
 	void update_data_vector(const nav_msgs::Odometry::ConstPtr& msg);
 	void update_range_data(const sensor_msgs::LaserScan::ConstPtr& msg);
+	void update_navfn(const nav_msgs::OccupancyGrid::ConstPtr& msg);
 
 public:
 	// Constructor.

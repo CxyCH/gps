@@ -55,8 +55,20 @@ try:
             300.0, 0.0, 2.0, 2.0
         ]),
     }
-    
+
     AGENT_TURTLEBOT = {
+        #TODO: Check is needed to change these name ?
+        'trial_command_topic': 'gps_controller_trial_command',
+        'reset_command_topic': 'gps_controller_navigation_command',
+        'data_request_topic': 'gps_controller_data_request',
+        'sample_result_topic': 'gps_controller_report',
+        'trial_timeout': 20,  # Give this many seconds for a trial.
+        'reset_conditions': [],  # Defines reset modes + positions for
+                                 # trial and auxiliary arms.
+        'frequency': 20,
+    }
+
+    AGENT_MPEPEC_TURTLEBOT = {
         #TODO: Check is needed to change these name ?
         'trial_command_topic': 'gps_controller_trial_command',
         'reset_command_topic': 'gps_controller_navigation_command',

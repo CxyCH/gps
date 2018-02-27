@@ -1,0 +1,31 @@
+<launch>
+	<arg name="world"  default="hallway"/>
+  <arg name="world_path" default="$(find gps_agent_pkg)/worlds/"/>
+  <arg name="map_path" default="$(find gps_agent_pkg)/maps/"/>
+
+	<include file="$(find gps_agent_pkg)/launch/include/world_stage.launch">
+		<arg name="world" value="$(arg world)"/>
+    <arg name="world_path" value="$(arg world_path)"/>
+    <arg name="map_path" value="$(arg map_path)"/>
+	</include>
+
+	<!-- GPS receiver -->
+	<param name="/odom_topic" value="odom"/>
+	<param name="/scan_topic" value="scan"/>
+	<node name="mpepcmobilerobot_node" pkg="gps_agent_pkg" type="mpepcmobilerobot_node" output="screen">
+		<param name="/use_sim_time" value="true"/>
+		<rosparam file="$(find gps_agent_pkg)/param/costmap_common_params.yaml" command="load" ns="local_costmap" />
+    <rosparam file="$(find gps_agent_pkg)/param/local_costmap_params.yaml" command="load" />
+	</node>
+
+	<node name="globalplanner_node" pkg="gps_agent_pkg" type="globalplanner_node" output="screen">
+		<rosparam file="$(find gps_agent_pkg)/param/costmap_common_params.yaml" command="load" ns="global_costmap" />
+    <rosparam file="$(find gps_agent_pkg)/param/global_costmap_params.yaml" command="load" />
+		<rosparam file="$(find gps_agent_pkg)/param/global_planner_params.yaml" command="load" />
+	</node>
+
+	<node name="controllaw_node" pkg="gps_agent_pkg" type="controllaw_node" output="screen">
+		<param name="V_MAX" value="1.0" type="double" />
+	</node>
+
+</launch>

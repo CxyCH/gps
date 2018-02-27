@@ -30,6 +30,8 @@ MobileRobotSensor::MobileRobotSensor(ros::NodeHandle& n, RobotPlugin *plugin): S
 	// TODO: using parameter
 	range_data_.resize(30);
 
+	potential_score_.resize(2);
+
 	// Initialize cost map
 	tf_ = new tf::TransformListener(ros::Duration(10));
 	costmap_ros_ = new costmap_2d::Costmap2DROS("local_costmap", *tf_);
@@ -60,9 +62,11 @@ MobileRobotSensor::MobileRobotSensor(ros::NodeHandle& n, RobotPlugin *plugin): S
 	// Initialize subscriber
 	n.param<std::string>("/odom_topic", topic_name_, "odom");
 	n.param<std::string>("/scan_topic", range_topic_name_, "scan");
+	n.param<std::string>("/navfn_topic", potential_topic_name_, "/globalplanner_node/GlobalPlanner/potential");
 
 	subscriber_ = n.subscribe(topic_name_, 1, &MobileRobotSensor::update_data_vector, this);
 	range_subscriber_ = n.subscribe(range_topic_name_, 1, &MobileRobotSensor::update_range_data, this);
+	navfn_subscriber_ = n.subscribe<nav_msgs::OccupancyGrid> (potential_topic_name_, 1, &MobileRobotSensor::update_navfn, this);
 	nearest_obs_pub_ = n.advertise<visualization_msgs::Marker>("nearest_obstacle", 10);
 
 	// Set time.
@@ -96,13 +100,13 @@ void MobileRobotSensor::update(RobotPlugin *plugin, ros::Time current_time, bool
 		{
 			boost::mutex::scoped_lock lock(odom_mutex_);
 			minDist = min_distance_to_obstacle(cur_pose_, &obstacle_heading, &obs_pose);
+			potential_score_[0] = getGlobalPointPotential(cur_pose_);
 		}
 
 		nearest_obstacle_[0] = obs_pose.a;
 		nearest_obstacle_[1] = obs_pose.b;
 		nearest_obstacle_[2] = 0.0;
 
-		ROS_INFO("Min distance: %f, Pose: %f, %f", minDist, obs_pose.a, obs_pose.b);
 		visualization_msgs::Marker nearest_points;
 		nearest_points.header.frame_id = "odom";
 		nearest_points.header.stamp = ros::Time::now();
@@ -125,6 +129,9 @@ void MobileRobotSensor::update(RobotPlugin *plugin, ros::Time current_time, bool
 
 		nearest_points.points.push_back(p);
 		nearest_obs_pub_.publish(nearest_points);
+
+		ROS_INFO("Cur pose %.2f, %.2f", cur_pose_.position.x, cur_pose_.position.y);
+		ROS_INFO("Min distance: %.2f, Pot: %.2f, Pose: %.2f, %.2f", minDist, potential_score_[0], obs_pose.a, obs_pose.b);
 
 		previous_pose_time_ = current_time;
 	}
@@ -149,6 +156,10 @@ void MobileRobotSensor::set_sample_data_format(boost::scoped_ptr<Sample>& sample
     // Set nearest obstacle size and format.
 	OptionsMap nearest_obstacle_metadata;
 	sample->set_meta_data(gps::POSITION_NEAREST_OBSTACLE,nearest_obstacle_.size(),SampleDataFormatEigenVector,nearest_obstacle_metadata);
+
+	// Set nearest obstacle size and format.
+	OptionsMap potential_score_metadata;
+	sample->set_meta_data(gps::POTENTIAL_SCORE,potential_score_.size(),SampleDataFormatEigenVector,potential_score_metadata);
 
     // Set linear velocities size and format.
 	OptionsMap linear_velocities_metadata;
@@ -187,6 +198,7 @@ void MobileRobotSensor::set_sample_data(boost::scoped_ptr<Sample>& sample, int t
 	// Set nearest obstacle.
 	sample->set_data_vector(t,gps::POSITION_NEAREST_OBSTACLE,nearest_obstacle_.data(),nearest_obstacle_.size(),SampleDataFormatEigenVector);
 
+	sample->set_data_vector(t,gps::POTENTIAL_SCORE,potential_score_.data(),potential_score_.size(),SampleDataFormatEigenVector);
 
 	{
 		boost::mutex::scoped_lock lock(range_mutex_);
@@ -239,7 +251,76 @@ void MobileRobotSensor::update_range_data(const sensor_msgs::LaserScan::ConstPtr
 		}
 	}
 }
+
+void MobileRobotSensor::update_navfn(const nav_msgs::OccupancyGrid::ConstPtr& nav_cost)
+{
+	{
+	    boost::mutex::scoped_lock lock(global_pot_mutex_);
+
+		global_potarr_ = nav_cost->data;
+		global_width_ = nav_cost->info.width;
+		global_height_ = nav_cost->info.height;
+		origin_x_ = nav_cost->info.origin.position.x;
+		origin_y_ = nav_cost->info.origin.position.y;
+		resolution_ = nav_cost->info.resolution;
 	}
+}
+
+geometry_msgs::Point MobileRobotSensor::transformOdomToMap(geometry_msgs::Pose local_pose){
+	// Transform to global_pose
+	//clock_t begin_time = clock();
+	geometry_msgs::PointStamped local_point;
+	local_point.header.frame_id = costmap_ros_->getGlobalFrameID();
+	// This is important!!!
+	// It make transformPose to lookup the latest available transform
+	local_point.header.stamp = ros::Time(0);
+	local_point.point = local_pose.position;
+	geometry_msgs::PointStamped global_point_stamp;
+	try{
+		tf_->waitForTransform("/map", costmap_ros_->getGlobalFrameID(), ros::Time(0), ros::Duration(10.0));
+		tf_->transformPoint("/map", local_point, global_point_stamp);
+	}catch (tf::TransformException & ex){
+		ROS_ERROR("Transform exception 111 : %s", ex.what());
+	}
+	//ROS_INFO("Transform plan take %f", float( clock() - begin_time ) /  CLOCKS_PER_SEC);
+	return global_point_stamp.point;
+}
+
+double MobileRobotSensor::getGlobalPointPotential(geometry_msgs::Pose local_pose){
+	//clock_t begin_time = clock();
+	// Uninitialized
+	if (global_width_ == 0 || global_height_ == 0) return DBL_MAX;
+	geometry_msgs::Point currentPoint = transformOdomToMap(local_pose);
+
+	double score;
+	{
+		boost::mutex::scoped_lock lock(global_pot_mutex_);
+
+		// TODO: Interpolate here
+		bool flag = false;
+		unsigned int mx, my;
+		// Copy from worldToMap from Costmap2D
+		if (currentPoint.x < origin_x_ || currentPoint.y < origin_y_)
+		  flag = false;
+		mx = (int)((currentPoint.x - origin_x_) / resolution_);
+		my = (int)((currentPoint.y - origin_y_) / resolution_);
+		if (mx < global_width_ && my < global_height_)
+		  flag = true;
+
+		//ROS_INFO("Get point potential take %f", float( clock() - begin_time ) /  CLOCKS_PER_SEC);
+
+		if(!flag)
+			score = DBL_MAX;
+
+		unsigned int index = my * global_width_ + mx;
+
+		if(global_potarr_[index] == -1){
+			score = 100; // Highest
+		}else
+			score = global_potarr_[index];
+	}
+
+	return score;
 }
 
 void MobileRobotSensor::updateObstacleTree(costmap_2d::Costmap2D *costmap)
