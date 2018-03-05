@@ -55,7 +55,7 @@ map_state = [
 			# 1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
 			# 0., 0., 0.,			# Linear Velocities
 			# 0., 0., 0.]),		# Angular Velocities
-			np.array([9.5, 10.3, 0.,	# Position x, y, z
+			np.array([15.5, 11.3, 0.,	# Position x, y, z
 			1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
 			0., 0., 0.,			# Linear Velocities
 			0., 0., 0.]),		# Angular Velocities
@@ -70,7 +70,7 @@ goal_conditions = [
 			# 1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
 			# 0., 0., 0.,			# Linear Velocities
 			# 0., 0., 0.]),		# Angular Velocities
-			np.array([27.5, 12.6, 0.,	# Position x, y, z
+			np.array([33.5, 17.6, 0.,	# Position x, y, z
 			1., 0., 0., 0.,	# Quaternion w, z, (x, y?)
 			0., 0., 0.,			# Linear Velocities
 			0., 0., 0.]),		# Angular Velocities
@@ -111,7 +111,7 @@ agent = {
     'type': AgentMPEPCTurtlebot,
     'dt': 0.05,
     'conditions': common['conditions'],
-    'T': 100,
+    'T': 150,
     'x0': x0s,
     'use_mpc': common['use_mpc'],
     'M': 10,

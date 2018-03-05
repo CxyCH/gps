@@ -130,8 +130,7 @@ void MobileRobotSensor::update(RobotPlugin *plugin, ros::Time current_time, bool
 		nearest_points.points.push_back(p);
 		nearest_obs_pub_.publish(nearest_points);
 
-		ROS_INFO("Cur pose %.2f, %.2f", cur_pose_.position.x, cur_pose_.position.y);
-		ROS_INFO("Min distance: %.2f, Pot: %.2f, Pose: %.2f, %.2f", minDist, potential_score_[0], obs_pose.a, obs_pose.b);
+//		ROS_INFO("Min distance: %.2f, Pot: %.2f, Pose: %.2f, %.2f", minDist, potential_score_[0], obs_pose.a, obs_pose.b);
 
 		previous_pose_time_ = current_time;
 	}
@@ -239,6 +238,10 @@ void MobileRobotSensor::update_data_vector(const nav_msgs::Odometry::ConstPtr& m
 		cur_pose_.orientation.z = orientation_[2];
 		cur_pose_.orientation.w = orientation_[3];
 	}
+}
+
+geometry_msgs::Pose MobileRobotSensor::getCurrentRobotPose(){
+	return cur_pose_;
 }
 
 void MobileRobotSensor::update_range_data(const sensor_msgs::LaserScan::ConstPtr& msg)

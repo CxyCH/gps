@@ -1,9 +1,12 @@
 <launch>
+	<arg name="use_mpepc"  default="false"/>
 	<arg name="world"  default="hallway"/>
   <arg name="world_path" default="$(find gps_agent_pkg)/worlds/"/>
   <arg name="map_path" default="$(find gps_agent_pkg)/maps/"/>
+	<arg name="V_MAX" default="1.0" />
 
 	<include file="$(find gps_agent_pkg)/launch/include/world_stage.launch">
+		<arg name="use_mpepc" value="$(arg use_mpepc)"/>
 		<arg name="world" value="$(arg world)"/>
     <arg name="world_path" value="$(arg world_path)"/>
     <arg name="map_path" value="$(arg map_path)"/>
@@ -14,6 +17,11 @@
 	<param name="/scan_topic" value="scan"/>
 	<node name="mpepcmobilerobot_node" pkg="gps_agent_pkg" type="mpepcmobilerobot_node" output="screen">
 		<param name="/use_sim_time" value="true"/>
+		<param name="use_mpepc" value="$(arg use_mpepc)" type="bool" />
+		<param name="V_MAX" value="$(arg V_MAX)" type="double" />
+		<param name="TIME_HORIZON" value="2.0" type="double" />
+		<param name="SAFETY_ZONE" value="0.5" type="double" />
+		<param name="SIGMA" value="0.25" type="double" />
 		<rosparam file="$(find gps_agent_pkg)/param/costmap_common_params.yaml" command="load" ns="local_costmap" />
     <rosparam file="$(find gps_agent_pkg)/param/local_costmap_params.yaml" command="load" />
 	</node>
@@ -25,7 +33,8 @@
 	</node>
 
 	<node name="controllaw_node" pkg="gps_agent_pkg" type="controllaw_node" output="screen">
-		<param name="V_MAX" value="1.0" type="double" />
+		<param name="V_MAX" value="$(arg V_MAX)" type="double" />
+		<param name="goal_dist_tol" value="0.3" type="double" />
 	</node>
 
 </launch>

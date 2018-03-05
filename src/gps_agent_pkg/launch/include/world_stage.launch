@@ -10,7 +10,8 @@
   - rviz view
  -->
 <launch>
-	<arg name="world"  default="hallway"/>  
+	<arg name="use_mpepc"  default="false"/>
+	<arg name="world"  default="hallway"/>
   <arg name="world_path" default="$(find gps_agent_pkg)/worlds/"/>
   <arg name="map_path" default="$(find gps_agent_pkg)/maps/"/>
 	
@@ -90,5 +91,6 @@
   </include>-->
   
   <!--  **************** Visualisation ****************  -->
-  <node pkg="rviz" type="rviz" respawn="false" name="rviz" args="-d $(find gps_agent_pkg)/param/turtlebot.rviz" />
+	<node pkg="rviz" type="rviz" respawn="false" name="rviz" args="-d $(find gps_agent_pkg)/param/turtlebot_mpepc.rviz" if="$(arg use_mpepc)" />
+  <node pkg="rviz" type="rviz" respawn="false" name="rviz" args="-d $(find gps_agent_pkg)/param/turtlebot.rviz" unless="$(arg use_mpepc)" />
 </launch>

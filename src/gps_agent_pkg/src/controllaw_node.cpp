@@ -28,7 +28,7 @@ ControlLaw* cl;
 void egoGoalCallback(const gps_agent_pkg::EgoGoal::ConstPtr& ego_goal)
 {
 	boost::mutex::scoped_lock lock(inter_goal_mutex_);
-    ROS_INFO("EgoGoal: [%f, %f, %f]", ego_goal->r, ego_goal->delta, ego_goal->theta);
+//    ROS_INFO("EgoGoal: [%f, %f, %f]", ego_goal->r, ego_goal->delta, ego_goal->theta);
     inter_goal_coords_.r = ego_goal->r;
     inter_goal_coords_.delta = ego_goal->delta;
     inter_goal_coords_.theta = ego_goal->theta;
@@ -90,7 +90,7 @@ void computeVelocity(geometry_msgs::Pose &current_pose, geometry_msgs::Twist &cm
 		}
 		else
 		{
-		  ROS_INFO("[MPEPC] Completed normal trajectory following");
+//		  ROS_INFO("[MPEPC] Completed normal trajectory following");
 //		  goal_reached_ = true;
 		  cmd_vel.linear.x = 0;
 		  cmd_vel.angular.z = 0;
@@ -134,7 +134,7 @@ int main(int argc, char** argv){
 	private_nh.param<double>("R_THRESH", settings_.m_R_THRESH, 0.05);
 	private_nh.param<double>("V_MAX", settings_.m_V_MAX, 1.0);
 	private_nh.param<double>("V_MIN", settings_.m_V_MIN, 0.0);
-	private_nh.param<double>("W_TURN", settings_.m_W_TURN, 0.0);
+	private_nh.param<double>("W_TURN", settings_.m_W_TURN, 0.2);
 	private_nh.param<double>("goal_dist_tol", GOAL_DIST_UPDATE_THRESH, 0.15);
 	private_nh.param<double>("goal_angle_tol", GOAL_ANGLE_UPDATE_THRESH, 0.1);
 

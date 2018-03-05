@@ -114,9 +114,7 @@ private:
 	double distance(double pose_x, double pose_y, double obx, double oby);
 	void updateObstacleTree(costmap_2d::Costmap2D *costmap);
 	geometry_msgs::Point transformOdomToMap(geometry_msgs::Pose local_pose);
-	double getGlobalPointPotential(geometry_msgs::Pose local_pose);
 	MinDistResult find_nearest_neighbor(Point queryPoint);
-	double min_distance_to_obstacle(geometry_msgs::Pose local_current_pose, double *heading, Point *obs_pose);
 
 	// Subscriber topic
 	void update_data_vector(const nav_msgs::Odometry::ConstPtr& msg);
@@ -136,6 +134,10 @@ public:
 	virtual void set_sample_data_format(boost::scoped_ptr<Sample>& sample);
 	// Set data on the provided sample.
 	virtual void set_sample_data(boost::scoped_ptr<Sample>& sample, int t);
+
+	geometry_msgs::Pose getCurrentRobotPose();
+	double getGlobalPointPotential(geometry_msgs::Pose local_pose);
+	double min_distance_to_obstacle(geometry_msgs::Pose local_current_pose, double *heading, Point *obs_pose);
 };
 }
 

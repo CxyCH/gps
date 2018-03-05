@@ -116,7 +116,7 @@ target_link_libraries(controllaw_node gps_agent_lib)
 
 # Include Caffe in controller
 if (USE_CAFFE)
-    target_link_libraries(gps_agent_lib caffe protobuf)
+    target_link_libraries(gps_agent_lib caffe protobuf nlopt)
 endif (USE_CAFFE)
 
 rosbuild_link_boost(gps_agent_lib thread)# smart_ptr)
