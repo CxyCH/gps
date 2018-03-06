@@ -137,7 +137,7 @@ class AgentROS(Agent):
                        condition_data[AUXILIARY_ARM]['data'])
         time.sleep(2.0)  # useful for the real robot, so it stops completely
 
-    def sample(self, policy, condition, reset=True, verbose=True, save=True, noisy=True):
+    def sample(self, policy, condition, reset=True, verbose=True, save=True, noisy=True, record_image=False, record_gif=None, record_gif_fps=None):
         """
         Reset and execute a policy and collect a sample.
         Args:

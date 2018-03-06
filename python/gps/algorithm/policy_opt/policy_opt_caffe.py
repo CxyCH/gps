@@ -5,8 +5,11 @@ import tempfile
 
 import numpy as np
 
-import caffe
-from caffe.proto.caffe_pb2 import SolverParameter, TRAIN, TEST
+try:
+    import caffe
+    from caffe.proto.caffe_pb2 import SolverParameter, TRAIN, TEST
+except ImportError:
+    print 'No Caffe Detected'
 from google.protobuf.text_format import MessageToString
 
 from gps.algorithm.policy.caffe_policy import CaffePolicy
@@ -95,7 +98,7 @@ class PolicyOptCaffe(PolicyOpt):
     # TODO - This assumes that the obs is a vector being passed into the
     #        network in the same place.
     #        (won't work with images or multimodal networks)
-    def update(self, obs, tgt_mu, tgt_prc, tgt_wt):
+    def update(self, obs, tgt_mu, tgt_prc, tgt_wt, fc_only=False):
         """
         Update policy.
         Args:

@@ -31,7 +31,8 @@ enum SampleType {
   MOBILE_RANGE_SENSOR = 24;
   POTENTIAL_SCORE = 25;
   NOISE = 26;
-  TOTAL_DATA_TYPES = 27;
+  CONDITION_DATA = 27; //A constant specific to each condition
+  TOTAL_DATA_TYPES = 28;
 }
 
 // Message containing the data for a single sample.

@@ -44,7 +44,7 @@ class AgentBox2D(Agent):
                         for i in range(self._hyperparams['conditions'])]
 
 
-    def sample(self, policy, condition, reset=True, verbose=False, save=True, noisy=True):
+    def sample(self, policy, condition, reset=True, verbose=False, save=True, noisy=True, record_image=False, record_gif=None, record_gif_fps=None):
         """
         Runs a trial and constructs a new sample containing information
         about the trial.

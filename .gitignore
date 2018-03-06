@@ -83,9 +83,17 @@ MUJOCO_LOG.TXT
 *.swp
 *.swo
 
+# Idea
+.idea/
+
 # Caffe
 *.caffemodel
 *.solverstate
+
+#Tensorflow
+*.wts
+*.wts.meta
+checkpoint
 
 # Data files
 *.pkl
